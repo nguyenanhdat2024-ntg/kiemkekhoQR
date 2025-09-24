@@ -1,12 +1,12 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="vi">
 <head>
   <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="description" content="Ứng dụng quét mã vạch và quản lý kiểm kê nhanh chóng, hiệu quả">
   <meta name="keywords" content="quét mã vạch, kiểm kê, inventory, barcode scanner">
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self'">
-  <title>Quét Mã Vạch Nhanh</title>
+  <title>Kiểm kê nhanh — Barcode Scanner</title>
   <style>
     :root {
       --primary: #1366d6;
@@ -38,7 +38,6 @@
       font-size: 22px;
       margin: 6px 0 12px;
       color: var(--primary);
-      text-align: center;
     }
     
     h3 {
@@ -327,136 +326,6 @@
       text-align: center;
     }
     
-    .camera-container {
-      position: relative;
-      margin-bottom: 12px;
-    }
-    
-    .camera-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      pointer-events: none;
-    }
-    
-    .scan-area {
-      width: 200px;
-      height: 100px;
-      border: 2px solid var(--primary);
-      border-radius: 8px;
-      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
-    }
-    
-    .capture-btn {
-      position: absolute;
-      bottom: 16px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      background: var(--primary);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      color: white;
-      font-size: 24px;
-      cursor: pointer;
-      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
-      transition: all 0.2s;
-      z-index: 10;
-    }
-    
-    .capture-btn:active {
-      transform: translateX(-50%) scale(0.95);
-    }
-    
-    .camera-controls {
-      display: flex;
-      justify-content: center;
-      gap: 12px;
-      margin-top: 12px;
-    }
-    
-    .auto-scan-toggle {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      margin-bottom: 12px;
-    }
-    
-    .toggle-switch {
-      position: relative;
-      display: inline-block;
-      width: 50px;
-      height: 24px;
-    }
-    
-    .toggle-switch input {
-      opacity: 0;
-      width: 0;
-      height: 0;
-    }
-    
-    .toggle-slider {
-      position: absolute;
-      cursor: pointer;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background-color: #ccc;
-      transition: .4s;
-      border-radius: 24px;
-    }
-    
-    .toggle-slider:before {
-      position: absolute;
-      content: "";
-      height: 16px;
-      width: 16px;
-      left: 4px;
-      bottom: 4px;
-      background-color: white;
-      transition: .4s;
-      border-radius: 50%;
-    }
-    
-    input:checked + .toggle-slider {
-      background-color: var(--primary);
-    }
-    
-    input:checked + .toggle-slider:before {
-      transform: translateX(26px);
-    }
-    
-    .flash-effect {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: white;
-      opacity: 0;
-      pointer-events: none;
-      border-radius: 6px;
-    }
-    
-    @keyframes flash {
-      0% { opacity: 0; }
-      50% { opacity: 0.8; }
-      100% { opacity: 0; }
-    }
-    
-    .flash-active {
-      animation: flash 0.3s ease;
-    }
-    
     @media (max-width: 900px) {
       .grid {
         grid-template-columns: 1fr;
@@ -464,11 +333,6 @@
       
       .card {
         padding: 12px;
-      }
-      
-      .scan-area {
-        width: 180px;
-        height: 90px;
       }
     }
     
@@ -489,10 +353,26 @@
       .qty-controls {
         justify-content: center;
       }
+
+      .qty-controls {
+        display: grid;
+        grid-template-columns: 50px 1fr 50px;
+        gap: 8px;
+        align-items: center;
+      }
       
-      .scan-area {
-        width: 160px;
-        height: 80px;
+      .qty-controls input {
+        width: 100%;
+      }
+      
+      .controls.wrap-buttons {
+        flex-wrap: wrap;
+        justify-content: center;
+      }
+      
+      .controls.wrap-buttons > * {
+        flex-basis: 48%;
+        margin-bottom: 8px;
       }
     }
   </style>
@@ -502,26 +382,11 @@
   
   <div class="grid">
     <div class="card">
-      <div class="camera-container">
-        <video id="video" playsinline></video>
-        <div class="camera-overlay">
-          <div class="scan-area"></div>
-        </div>
-        <div class="capture-btn" id="captureBtn">📷</div>
-        <div class="flash-effect" id="flashEffect"></div>
-      </div>
-
-      <div class="auto-scan-toggle">
-        <span>Quét tự động:</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="autoScanToggle" checked>
-          <span class="toggle-slider"></span>
-        </label>
-      </div>
-
-      <div class="camera-controls">
+      <video id="video" playsinline></video>
+      <div class="controls">
         <select id="deviceSelect"></select>
-        <button id="flashToggle" class="ghost small">🔦 Flash</button>
+        <button id="startBtn">📷 Bắt đầu</button>
+        <button id="stopBtn" class="ghost">⏹️ Dừng</button>
       </div>
 
       <label>Mã gốc:</label>
@@ -541,6 +406,9 @@
       <label>Mã sau lọc:</label>
       <div class="code-display code-filtered" id="filtered">(chưa có)</div>
 
+      <label for="productName">Tên sản phẩm</label>
+      <input id="productName" placeholder="Tên sản phẩm (nếu có)" />
+
       <label for="qty">Số lượng</label>
       <div class="controls">
         <div class="qty-controls">
@@ -551,19 +419,14 @@
         <button id="addBtn" class="success">➕ Thêm</button>
       </div>
 
-      <div class="search-box">
-        <span class="search-icon">🔍</span>
-        <input id="searchInput" type="text" placeholder="Tìm kiếm trong danh sách..." />
-      </div>
-
-      <div class="controls">
+      <div class="controls wrap-buttons">
         <button id="clearBtn" class="ghost small danger">🗑️ Xóa danh sách</button>
         <button id="exportBtn" class="small">📥 Xuất CSV</button>
         <input id="importFile" type="file" accept=".csv,text/csv" style="display:none" />
         <button id="importBtn" class="small ghost">📤 Nhập CSV</button>
       </div>
 
-      <div id="log" class="status-success">Đang khởi tạo camera...</div>
+      <div id="log" class="status-success">Sẵn sàng. Bấm "Bắt đầu" và cho phép Camera.</div>
     </div>
 
     <div class="card">
@@ -573,13 +436,14 @@
           <thead>
             <tr>
               <th>Mã</th>
+              <th>Tên</th>
               <th>Số lượng</th>
               <th>Hành động</th>
             </tr>
           </thead>
           <tbody>
             <tr>
-              <td colspan="3" class="empty-state">Danh sách trống</td>
+              <td colspan="4" class="empty-state">Danh sách trống</td>
             </tr>
           </tbody>
         </table>
@@ -591,21 +455,22 @@
   </div>
 
   <footer>
-    Ứng dụng chạy tốt nhất trên HTTPS (GitHub Pages) hoặc localhost.
+    Nhớ cho phép Camera khi trình duyệt hỏi. Ứng dụng chạy tốt nhất trên HTTPS (GitHub Pages) hoặc localhost.
     <br>Dữ liệu được lưu trữ cục bộ trong trình duyệt của bạn.
   </footer>
 
   <div id="notification" class="notification"></div>
 
-  <!-- ZXing library -->
   <script src="https://unpkg.com/@zxing/library@0.18.6"></script>
   <script>
     // --- DOM Elements ---
     const video = document.getElementById('video');
     const deviceSelect = document.getElementById('deviceSelect');
-    const captureBtn = document.getElementById('captureBtn');
+    const startBtn = document.getElementById('startBtn');
+    const stopBtn = document.getElementById('stopBtn');
     const decodedEl = document.getElementById('decoded');
     const filteredEl = document.getElementById('filtered');
+    const productNameInput = document.getElementById('productName');
     const qtyInput = document.getElementById('qty');
     const addBtn = document.getElementById('addBtn');
     const decBtn = document.getElementById('dec');
@@ -620,22 +485,17 @@
     const filterStart = document.getElementById('filterStart');
     const filterLength = document.getElementById('filterLength');
     const logEl = document.getElementById('log');
-    const searchInput = document.getElementById('searchInput');
     const notification = document.getElementById('notification');
-    const autoScanToggle = document.getElementById('autoScanToggle');
-    const flashToggle = document.getElementById('flashToggle');
-    const flashEffect = document.getElementById('flashEffect');
 
     // --- Application State ---
     const inventory = new Map();
+    const knownProducts = new Map();
     const codeReader = new ZXing.BrowserMultiFormatReader();
     let currentStream = null;
     let selectedDeviceId = null;
     let lastCode = '', lastTime = 0;
     let isScanning = false;
-    let isAutoScan = true;
-    let flashEnabled = false;
-    let torchEnabled = false;
+    let isAdding = false;
 
     // --- Utility Functions ---
     function showNotification(message, type = 'success', duration = 3000) {
@@ -674,6 +534,7 @@
         start: filterStart.value,
         length: filterLength.value
       }));
+      localStorage.setItem('known_products', JSON.stringify([...knownProducts.entries()]));
     }
 
     function loadLocal() {
@@ -687,26 +548,27 @@
         const filterSettings = JSON.parse(localStorage.getItem('inventory_filter') || '{}');
         if (filterSettings.start) filterStart.value = filterSettings.start;
         if (filterSettings.length !== undefined) filterLength.value = filterSettings.length;
+
+        const knownArr = JSON.parse(localStorage.getItem('known_products') || '[]');
+        knownProducts.clear();
+        for (const [k, v] of knownArr) {
+          knownProducts.set(k, v);
+        }
       } catch (e) {
         console.warn('loadLocal error', e);
       }
     }
 
-    function renderTable(searchTerm = '') {
+    function renderTable() {
       tableBody.innerHTML = '';
       let total = 0;
       let hasItems = false;
       
       for (const [k, v] of inventory.entries()) {
-        // Filter by search term if provided
-        if (searchTerm && 
-            !v.code.toLowerCase().includes(searchTerm.toLowerCase())) {
-          continue;
-        }
-        
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${escapeHtml(v.code)}</td>
+          <td>${escapeHtml(v.name)}</td>
           <td>${v.qty}</td>
           <td><button data-code="${escapeAttr(v.code)}" class="ghost small danger">🗑️ Xóa</button></td>
         `;
@@ -718,7 +580,7 @@
       if (!hasItems) {
         tableBody.innerHTML = `
           <tr>
-            <td colspan="3" class="empty-state">${searchTerm ? 'Không tìm thấy kết quả phù hợp' : 'Danh sách trống'}</td>
+            <td colspan="4" class="empty-state">Danh sách trống</td>
           </tr>
         `;
       }
@@ -726,14 +588,13 @@
       countEl.textContent = inventory.size;
       totalEl.textContent = total;
       
-      // Add event listeners to delete buttons
       tableBody.querySelectorAll('button').forEach(b => {
         b.addEventListener('click', ev => {
           const code = ev.currentTarget.getAttribute('data-code');
           if (confirm(`Xóa sản phẩm "${code}"?`)) {
             inventory.delete(code);
             saveLocal();
-            renderTable(searchInput.value);
+            renderTable();
             showNotification('Đã xóa sản phẩm khỏi danh sách', 'success');
           }
         });
@@ -753,6 +614,8 @@
       }
       video.srcObject = null;
       isScanning = false;
+      stopBtn.disabled = true;
+      startBtn.disabled = false;
     }
 
     async function listCameras() {
@@ -768,7 +631,6 @@
         });
         
         if (devices.length) {
-          // Try to select rear camera by default
           let back = devices.find(d => /back|rear|environment/i.test(d.label));
           if (!back) back = devices[devices.length - 1];
           selectedDeviceId = back.deviceId || devices[0].deviceId;
@@ -782,58 +644,32 @@
       }
     }
 
-    async function startCamera() {
+    async function startScan() {
       if (isScanning) return;
       
       stopStream();
-      video.setAttribute('playsinline', '');
+      startBtn.disabled = true;
+      startBtn.innerHTML = '<span class="loading"></span> Đang kết nối...';
       
       try {
-        // Try to use selected device
-        if (deviceSelect.value) {
-          selectedDeviceId = deviceSelect.value;
-          const constraints = { 
-            video: { 
-              deviceId: { exact: selectedDeviceId },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            } 
-          };
-          
-          currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-          video.srcObject = currentStream;
-          await video.play();
-        } else {
-          // Fallback to environment camera
-          const constraints = { 
-            video: { 
-              facingMode: { ideal: "environment" },
-              width: { ideal: 1280 },
-              height: { ideal: 720 }
-            } 
-          };
-          
-          currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-          video.srcObject = currentStream;
-          await video.play();
-        }
+        const constraints = {
+          video: {
+            width: { ideal: 1280 },
+            height: { ideal: 720 },
+            deviceId: selectedDeviceId ? { exact: selectedDeviceId } : undefined,
+            facingMode: selectedDeviceId ? undefined : { ideal: 'environment' }
+          }
+        };
         
-        // Start scanning if auto-scan is enabled
-        if (isAutoScan) {
-          startAutoScan();
-        }
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentStream;
         
-        log('Camera đã kết nối. Đưa mã vào khung để quét.', 'status-success');
-      } catch (error) {
-        log('Lỗi kết nối camera: ' + (error?.message || error), 'status-error');
-        showNotification('Không thể kết nối camera. Vui lòng kiểm tra quyền truy cập.', 'error', 5000);
-      }
-    }
-
-    function startAutoScan() {
-      if (!currentStream || !isAutoScan) return;
-      
-      try {
+        await new Promise((resolve) => {
+          video.onloadedmetadata = () => {
+            video.play().then(resolve);
+          };
+        });
+        
         codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, err) => {
           if (result) handleResult(result.text);
           if (err && !(err instanceof ZXing.NotFoundException)) {
@@ -842,56 +678,28 @@
         });
         
         isScanning = true;
-        log('Đang quét tự động...', 'status-success');
+        stopBtn.disabled = false;
+        log('Camera đã kết nối. Đưa mã vào khung để quét.', 'status-success');
+        
       } catch (error) {
-        console.error('Auto scan error:', error);
+        console.error('Lỗi kết nối camera:', error);
+        log('Lỗi kết nối camera: ' + (error?.message || error), 'status-error');
+        showNotification('Không thể kết nối camera. Vui lòng kiểm tra quyền truy cập.', 'error', 5000);
+      } finally {
+        startBtn.innerHTML = '📷 Bắt đầu';
+        startBtn.disabled = isScanning;
       }
     }
 
-    function stopAutoScan() {
-      try {
-        codeReader.reset();
-        isScanning = false;
-      } catch (e) {
-        // Ignore reset errors
-      }
-    }
-
-    function captureImage() {
-      if (!currentStream) {
-        showNotification('Camera chưa sẵn sàng!', 'error');
-        return;
-      }
-      
-      // Show flash effect
-      flashEffect.classList.add('flash-active');
-      setTimeout(() => {
-        flashEffect.classList.remove('flash-active');
-      }, 300);
-      
-      // Try to decode from current video frame
-      try {
-        codeReader.decodeFromVideoElement(video).then(result => {
-          if (result) {
-            handleResult(result.text);
-            showNotification('Đã chụp và quét mã thành công', 'success');
-          } else {
-            showNotification('Không tìm thấy mã vạch trong ảnh', 'warning');
-          }
-        }).catch(err => {
-          console.warn('Capture decode error:', err);
-          showNotification('Không thể đọc mã vạch', 'error');
-        });
-      } catch (error) {
-        console.error('Capture error:', error);
-        showNotification('Lỗi khi chụp ảnh', 'error');
-      }
+    function stopScan() {
+      stopStream();
+      log('Đã dừng camera.', 'status-success');
+      showNotification('Đã dừng camera', 'warning');
     }
 
     // --- Barcode Result Handling ---
     function handleResult(code) {
       const now = Date.now();
-      // Prevent duplicate scans within 1.5 seconds
       if (code === lastCode && now - lastTime < 1500) return;
       
       lastCode = code;
@@ -901,15 +709,17 @@
       const filtered = applyFilter(code);
       filteredEl.textContent = filtered || '(trống)';
       
-      // Auto-add if code doesn't exist, or focus quantity for update
-      if (!inventory.has(filtered)) {
-        addBtn.focus();
+      if (inventory.has(filtered)) {
+        productNameInput.value = inventory.get(filtered).name;
       } else {
-        qtyInput.focus();
-        qtyInput.select();
+        productNameInput.value = knownProducts.get(filtered) || '';
       }
       
+      productNameInput.focus();
+      
       showNotification(`Đã quét mã: ${code}`, 'success', 2000);
+
+      stopScan();
     }
 
     // --- Quantity Validation ---
@@ -937,29 +747,43 @@
     qtyInput.addEventListener('blur', validateQuantity);
 
     addBtn.addEventListener('click', () => {
-      const code = filteredEl.textContent && 
-                   filteredEl.textContent !== '(chưa có)' && 
-                   filteredEl.textContent !== '(trống)' ? 
-                   filteredEl.textContent.trim() : null;
+      if (isAdding) return;
       
-      const qty = validateQuantity();
-      
-      if (!code) {
+      const filteredCode = filteredEl.textContent.trim();
+      if (!filteredCode || filteredCode === '(chưa có)' || filteredCode === '(trống)') {
         showNotification('Chưa có mã để thêm!', 'error');
         return;
       }
+
+      isAdding = true;
+      addBtn.disabled = true;
+      
+      const code = filteredCode;
+      const name = productNameInput.value.trim() || '(không tên)';
+      const qty = validateQuantity();
       
       if (inventory.has(code)) {
         inventory.get(code).qty += qty;
         showNotification(`Đã cập nhật số lượng cho "${code}"`, 'success');
       } else {
-        inventory.set(code, { code, qty });
+        inventory.set(code, { code, name, qty });
         showNotification(`Đã thêm sản phẩm "${code}" vào danh sách`, 'success');
       }
       
+      if (name !== '(không tên)') {
+        knownProducts.set(code, name);
+      }
+      
       saveLocal();
-      renderTable(searchInput.value);
-      qtyInput.value = 1; // Reset quantity after adding
+      renderTable();
+      
+      productNameInput.value = '';
+      qtyInput.value = 1;
+
+      setTimeout(() => {
+        isAdding = false;
+        addBtn.disabled = false;
+      }, 500);
     });
 
     clearBtn.addEventListener('click', () => {
@@ -982,9 +806,9 @@
         return;
       }
       
-      const rows = [['Mã', 'Số lượng']];
+      const rows = [['Mã', 'Tên sản phẩm', 'Số lượng']];
       for (const [k, v] of inventory.entries()) {
-        rows.push([v.code, v.qty]);
+        rows.push([v.code, v.name, v.qty]);
       }
       
       const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
@@ -1015,23 +839,24 @@
           
           for (let i = 1; i < lines.length; i++) {
             const parts = splitCsvLine(lines[i]);
-            if (parts.length < 2) continue;
+            if (parts.length < 3) continue;
             
             const code = parts[0]?.trim() || `imp-${Date.now()}-${i}`;
-            const qty = Number(parts[1]) || 0;
+            const name = parts[1]?.trim() || '';
+            const qty = Number(parts[2]) || 0;
             
             if (qty > 0) {
               if (inventory.has(code)) {
                 inventory.get(code).qty += qty;
               } else {
-                inventory.set(code, { code, qty });
+                inventory.set(code, { code, name, qty });
               }
               importedCount++;
             }
           }
           
           saveLocal();
-          renderTable(searchInput.value);
+          renderTable();
           showNotification(`Đã nhập ${importedCount} mục từ file CSV`, 'success');
         } catch (error) {
           showNotification('Lỗi khi đọc file CSV: ' + error.message, 'error');
@@ -1065,28 +890,14 @@
     }
 
     deviceSelect.addEventListener('change', () => {
-      stopAutoScan();
-      startCamera();
-    });
-
-    captureBtn.addEventListener('click', captureImage);
-
-    autoScanToggle.addEventListener('change', () => {
-      isAutoScan = autoScanToggle.checked;
-      if (isAutoScan && currentStream) {
-        startAutoScan();
-        log('Đã bật chế độ quét tự động', 'status-success');
-      } else {
-        stopAutoScan();
-        log('Đã tắt chế độ quét tự động', 'status-success');
+      selectedDeviceId = deviceSelect.value;
+      if (isScanning) {
+        stopScan();
       }
     });
 
-    flashToggle.addEventListener('click', () => {
-      flashEnabled = !flashEnabled;
-      flashToggle.textContent = flashEnabled ? '💡 Flash' : '🔦 Flash';
-      flashToggle.classList.toggle('warning', flashEnabled);
-    });
+    startBtn.addEventListener('click', startScan);
+    stopBtn.addEventListener('click', stopScan);
 
     filterStart.addEventListener('input', () => {
       saveLocal();
@@ -1098,34 +909,41 @@
       if (lastCode) filteredEl.textContent = applyFilter(lastCode);
     });
 
-    searchInput.addEventListener('input', () => {
-      renderTable(searchInput.value);
+    productNameInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addBtn.click();
+      }
+    });
+    
+    qtyInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter') {
+        event.preventDefault();
+        addBtn.click();
+      }
     });
 
     // --- Initialize Application ---
     (async function init() {
-      // Set up notification element
       notification.innerHTML = 'ⓘ ';
       
-      // Populate camera list
       try {
         await listCameras();
       } catch (e) {
         console.warn('Init listCameras error:', e);
       }
       
-      // Load saved data
       loadLocal();
       renderTable();
       
-      // Start camera automatically
-      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
-        startCamera();
-      } else {
-        log('Trình duyệt không hỗ trợ truy cập camera.', 'status-error');
-      }
+      stopBtn.disabled = true;
       
-      log('Ứng dụng đã sẵn sàng.', 'status-success');
+      log('Ứng dụng đã sẵn sàng. Bấm "Bắt đầu" để quét mã vạch.', 'status-success');
+      
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        log('Trình duyệt không hỗ trợ truy cập camera.', 'status-error');
+        startBtn.disabled = true;
+      }
     })();
 
     // Clean up on page unload
