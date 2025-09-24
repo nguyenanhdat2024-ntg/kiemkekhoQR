@@ -3,11 +3,10 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Ứng dụng quét mã vạch và quản lý kiểm kê nhanh chóng, hiệu quả" />
-  <meta name="keywords" content="quét mã vạch, kiểm kê, inventory, barcode scanner" />
-  <!-- Lưu ý CSP tối giản cho ví dụ; tuỳ môi trường bạn có thể thắt chặt lại -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self' https://* data: blob:;">
-  <title>Quét Mã Vạch Nhanh — Sửa lỗi camera</title>
+  <meta name="description" content="Ứng dụng quét mã vạch và quản lý kiểm kê nhanh chóng, hiệu quả">
+  <meta name="keywords" content="quét mã vạch, kiểm kê, inventory, barcode scanner">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://unpkg.com; style-src 'self' 'unsafe-inline'; connect-src 'self'">
+  <title>Quét Mã Vạch Nhanh</title>
   <style>
     :root {
       --primary: #1366d6;
@@ -21,66 +20,508 @@
       --border: #e6e6e6;
       --shadow: 0 1px 4px rgba(0,0,0,0.03);
     }
-    * { box-sizing: border-box; }
+    
+    * {
+      box-sizing: border-box;
+    }
+    
     body {
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-      margin: 0; padding: 12px; color: var(--dark); background-color: #f5f7fa;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, "Helvetica Neue", Arial, sans-serif;
+      margin: 0;
+      padding: 12px;
+      color: var(--dark);
+      background-color: #f5f7fa;
       line-height: 1.5;
     }
-    h1 { font-size: 22px; margin: 6px 0 12px; color: var(--primary); text-align:center; }
-    .grid { display:grid; grid-template-columns:1fr 360px; gap:16px; max-width:1200px; margin:0 auto; align-items:start; }
-    .card { border:1px solid var(--border); padding:16px; border-radius:8px; background:white; box-shadow:var(--shadow); margin-bottom:12px;}
-    video { width:100%; height:auto; border-radius:6px; background:#000; min-height:200px; }
-    label { display:block; margin-top:12px; margin-bottom:4px; font-size:14px; font-weight:500; }
-    input[type=number], input[type=text], select { width:100%; padding:10px; border-radius:6px; border:1px solid #ccc; font-size:14px; }
-    button { padding:10px 14px; border-radius:6px; border:0; background:var(--primary); color:white; cursor:pointer; font-size:14px; font-weight:500; display:inline-flex; gap:6px; align-items:center; justify-content:center; }
-    button.ghost { background:#f2f2f2; color:#222; border:1px solid #ddd; }
-    button.small { padding:8px 10px; font-size:13px; }
-    button.success { background:var(--success); }
-    button.danger { background:var(--danger); }
-    .controls { display:flex; gap:8px; margin-top:12px; flex-wrap:wrap; align-items:center; }
-    table { width:100%; border-collapse:collapse; margin-top:8px; font-size:14px; }
-    th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; }
-    th { background:#f8f9fa; font-weight:600; }
-    .empty-state { text-align:center; padding:20px; color:var(--gray); }
-    #log { font-size:13px; margin-top:12px; min-height:40px; padding:8px; border-radius:4px; background:#fff9e6; border-left:4px solid var(--warning); }
-    .status-success { background:#f0f9f0; border-left-color:var(--success); color:#155724; }
-    .status-error { background:#fdf2f2; border-left-color:var(--danger); color:#721c24; }
-    .camera-container { position:relative; margin-bottom:12px; }
-    .camera-overlay { position:absolute; top:0; left:0; width:100%; height:100%; display:flex; align-items:center; justify-content:center; pointer-events:none; }
-    .scan-area { width:200px; height:100px; border:2px solid var(--primary); border-radius:8px; box-shadow:0 0 0 9999px rgba(0,0,0,0.4); }
-    .capture-btn { position:absolute; bottom:16px; left:50%; transform:translateX(-50%); width:60px; height:60px; border-radius:50%; background:var(--primary); display:flex; align-items:center; justify-content:center; color:white; font-size:24px; cursor:pointer; box-shadow:0 4px 8px rgba(0,0,0,0.3); z-index:10; }
-    .flash-effect { position:absolute; top:0; left:0; width:100%; height:100%; background:white; opacity:0; pointer-events:none; border-radius:6px; }
-    @keyframes flash { 0%{opacity:0}50%{opacity:0.8}100%{opacity:0} }
-    .flash-active { animation:flash 0.3s ease; }
-    .notification { position:fixed; top:20px; right:20px; padding:12px 16px; border-radius:6px; background:white; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1000; display:flex; gap:8px; transform:translateX(150%); transition:transform .3s ease; }
-    .notification.show { transform:translateX(0); }
-    .notification.success { border-left:4px solid var(--success); }
-    .notification.error { border-left:4px solid var(--danger); }
-    footer { margin-top:16px; font-size:12px; color:var(--gray); text-align:center; padding:8px; }
-    @media (max-width:900px){ .grid{grid-template-columns:1fr;} .scan-area{width:180px;height:90px;} }
-    @media (max-width:480px){ body{padding:8px;} .controls{flex-direction:column;align-items:stretch;} .capture-btn{bottom:12px;} }
+    
+    h1 {
+      font-size: 22px;
+      margin: 6px 0 12px;
+      color: var(--primary);
+      text-align: center;
+    }
+    
+    h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+    
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 360px;
+      gap: 16px;
+      align-items: start;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+    
+    .card {
+      border: 1px solid var(--border);
+      padding: 16px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      background: white;
+      margin-bottom: 12px;
+    }
+    
+    video {
+      width: 100%;
+      height: auto;
+      border-radius: 6px;
+      background: #000;
+      min-height: 200px;
+    }
+    
+    label {
+      display: block;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    
+    input[type=number], input[type=text], select {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 10px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+    
+    input:focus, select:focus {
+      outline: none;
+      border-color: var(--primary);
+      box-shadow: 0 0 0 2px rgba(19, 102, 214, 0.2);
+    }
+    
+    button {
+      padding: 10px 14px;
+      border-radius: 6px;
+      border: 0;
+      background: var(--primary);
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      transition: all 0.2s;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+    
+    button:hover:not(:disabled) {
+      background: var(--primary-dark);
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+      transform: none !important;
+    }
+    
+    button.ghost {
+      background: #f2f2f2;
+      color: #222;
+      border: 1px solid #ddd;
+    }
+    
+    button.ghost:hover:not(:disabled) {
+      background: #e6e6e6;
+    }
+    
+    button.success {
+      background: var(--success);
+    }
+    
+    button.danger {
+      background: var(--danger);
+    }
+    
+    button.warning {
+      background: var(--warning);
+      color: var(--dark);
+    }
+    
+    .small {
+      font-size: 12px;
+      padding: 8px 10px;
+    }
+    
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 8px;
+      font-size: 14px;
+    }
+    
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      text-align: left;
+    }
+    
+    th {
+      background: #f8f9fa;
+      font-weight: 600;
+    }
+    
+    tr:hover {
+      background: #f8f9fa;
+    }
+    
+    .controls {
+      display: flex;
+      gap: 8px;
+      margin-top: 12px;
+      flex-wrap: wrap;
+      align-items: center;
+    }
+    
+    footer {
+      margin-top: 16px;
+      font-size: 12px;
+      color: var(--gray);
+      text-align: center;
+      padding: 8px;
+    }
+    
+    #log {
+      font-size: 13px;
+      margin-top: 12px;
+      white-space: pre-wrap;
+      min-height: 40px;
+      padding: 8px;
+      border-radius: 4px;
+      background: #fff9e6;
+      border-left: 4px solid var(--warning);
+    }
+    
+    .status-success {
+      background: #f0f9f0;
+      border-left-color: var(--success);
+      color: #155724;
+    }
+    
+    .status-error {
+      background: #fdf2f2;
+      border-left-color: var(--danger);
+      color: #721c24;
+    }
+    
+    .code-display {
+      padding: 12px;
+      border-radius: 6px;
+      font-family: monospace;
+      font-size: 16px;
+      word-break: break-all;
+      margin: 8px 0;
+    }
+    
+    .code-original {
+      background: #fafafa;
+      border: 1px dashed #ccc;
+    }
+    
+    .code-filtered {
+      background: #f0f9ff;
+      border: 1px dashed #1366d6;
+      color: #1366d6;
+      font-weight: 600;
+    }
+    
+    .search-box {
+      margin-bottom: 12px;
+      position: relative;
+    }
+    
+    .search-box input {
+      padding-left: 36px;
+    }
+    
+    .search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: var(--gray);
+    }
+    
+    .empty-state {
+      text-align: center;
+      padding: 20px;
+      color: var(--gray);
+    }
+    
+    .loading {
+      position: relative;
+      color: transparent;
+    }
+    
+    .loading::after {
+      content: '';
+      position: absolute;
+      width: 16px;
+      height: 16px;
+      border: 2px solid transparent;
+      border-top: 2px solid currentColor;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      left: calc(50% - 8px);
+      top: calc(50% - 8px);
+    }
+    
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    
+    .notification {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      padding: 12px 16px;
+      border-radius: 6px;
+      background: white;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      z-index: 1000;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      transform: translateX(150%);
+      transition: transform 0.3s ease;
+    }
+    
+    .notification.show {
+      transform: translateX(0);
+    }
+    
+    .notification.success {
+      border-left: 4px solid var(--success);
+    }
+    
+    .notification.error {
+      border-left: 4px solid var(--danger);
+    }
+    
+    .notification.warning {
+      border-left: 4px solid var(--warning);
+    }
+    
+    .qty-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    
+    .qty-controls input {
+      width: 70px;
+      text-align: center;
+    }
+    
+    .camera-container {
+      position: relative;
+      margin-bottom: 12px;
+    }
+    
+    .camera-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
+    
+    .scan-area {
+      width: 200px;
+      height: 100px;
+      border: 2px solid var(--primary);
+      border-radius: 8px;
+      box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.4);
+    }
+    
+    .capture-btn {
+      position: absolute;
+      bottom: 16px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: var(--primary);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-size: 24px;
+      cursor: pointer;
+      box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+      transition: all 0.2s;
+      z-index: 10;
+    }
+    
+    .capture-btn:active {
+      transform: translateX(-50%) scale(0.95);
+    }
+    
+    .camera-controls {
+      display: flex;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 12px;
+    }
+    
+    .auto-scan-toggle {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-bottom: 12px;
+    }
+    
+    .toggle-switch {
+      position: relative;
+      display: inline-block;
+      width: 50px;
+      height: 24px;
+    }
+    
+    .toggle-switch input {
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+    
+    .toggle-slider {
+      position: absolute;
+      cursor: pointer;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background-color: #ccc;
+      transition: .4s;
+      border-radius: 24px;
+    }
+    
+    .toggle-slider:before {
+      position: absolute;
+      content: "";
+      height: 16px;
+      width: 16px;
+      left: 4px;
+      bottom: 4px;
+      background-color: white;
+      transition: .4s;
+      border-radius: 50%;
+    }
+    
+    input:checked + .toggle-slider {
+      background-color: var(--primary);
+    }
+    
+    input:checked + .toggle-slider:before {
+      transform: translateX(26px);
+    }
+    
+    .flash-effect {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: white;
+      opacity: 0;
+      pointer-events: none;
+      border-radius: 6px;
+    }
+    
+    @keyframes flash {
+      0% { opacity: 0; }
+      50% { opacity: 0.8; }
+      100% { opacity: 0; }
+    }
+    
+    .flash-active {
+      animation: flash 0.3s ease;
+    }
+    
+    @media (max-width: 900px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+      
+      .card {
+        padding: 12px;
+      }
+      
+      .scan-area {
+        width: 180px;
+        height: 90px;
+      }
+    }
+    
+    @media (max-width: 480px) {
+      body {
+        padding: 8px;
+      }
+      
+      .controls {
+        flex-direction: column;
+        align-items: stretch;
+      }
+      
+      .controls button {
+        width: 100%;
+      }
+      
+      .qty-controls {
+        justify-content: center;
+      }
+      
+      .scan-area {
+        width: 160px;
+        height: 80px;
+      }
+    }
   </style>
 </head>
 <body>
-  <h1>📦 Ứng dụng quét mã vạch — (Sửa lỗi camera)</h1>
-
+  <h1>📦 Ứng dụng quét mã vạch + nhập số lượng</h1>
+  
   <div class="grid">
     <div class="card">
       <div class="camera-container">
-        <!-- thêm autoplay muted playsinline để trình duyệt cho phép play tự động -->
-        <video id="video" playsinline autoplay muted></video>
-        <div class="camera-overlay"><div class="scan-area"></div></div>
-        <div class="capture-btn" id="captureBtn" title="Chụp & quét">📷</div>
+        <video id="video" playsinline></video>
+        <div class="camera-overlay">
+          <div class="scan-area"></div>
+        </div>
+        <div class="capture-btn" id="captureBtn">📷</div>
         <div class="flash-effect" id="flashEffect"></div>
       </div>
 
-      <div class="controls" style="align-items:center;">
-        <label style="margin:0;">Camera</label>
-        <select id="deviceSelect" style="min-width:160px;"></select>
-        <button id="openCameraBtn" class="small">🚀 Mở camera</button>
-        <button id="toggleAutoBtn" class="small ghost">🔁 Quét tự động: ON</button>
-        <button id="flashToggle" class="small ghost" title="Bật/tắt đèn (nếu hỗ trợ)">🔦 Flash</button>
+      <div class="auto-scan-toggle">
+        <span>Quét tự động:</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="autoScanToggle" checked>
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+
+      <div class="camera-controls">
+        <select id="deviceSelect"></select>
+        <button id="flashToggle" class="ghost small">🔦 Flash</button>
       </div>
 
       <label>Mã gốc:</label>
@@ -88,12 +529,12 @@
 
       <div class="controls">
         <div>
-          <label for="filterStart" style="margin-top:0;">Vị trí bắt đầu</label>
-          <input id="filterStart" type="number" min="1" value="1" style="width:120px" />
+          <label for="filterStart" style="margin-top: 0;">Vị trí bắt đầu</label>
+          <input id="filterStart" type="number" min="1" value="1" style="width: 100px" />
         </div>
         <div>
-          <label for="filterLength" style="margin-top:0;">Số ký tự</label>
-          <input id="filterLength" type="number" min="0" value="0" style="width:120px" placeholder="0 = đến cuối" />
+          <label for="filterLength" style="margin-top: 0;">Số ký tự</label>
+          <input id="filterLength" type="number" min="0" value="0" style="width: 100px" placeholder="0 = đến cuối" />
         </div>
       </div>
 
@@ -102,59 +543,66 @@
 
       <label for="qty">Số lượng</label>
       <div class="controls">
-        <div style="display:flex; gap:8px; align-items:center;">
+        <div class="qty-controls">
           <button id="dec" class="ghost small">−</button>
-          <input id="qty" type="number" value="1" min="1" style="width:80px; text-align:center;" />
+          <input id="qty" type="number" value="1" min="1" />
           <button id="inc" class="ghost small">＋</button>
         </div>
         <button id="addBtn" class="success">➕ Thêm</button>
       </div>
 
-      <div class="controls">
-        <div class="search-box" style="flex:1; position:relative;">
-          <span style="position:absolute; left:10px; top:50%; transform:translateY(-50%); color:var(--gray)">🔍</span>
-          <input id="searchInput" type="text" placeholder="Tìm kiếm trong danh sách..." style="padding-left:36px; width:100%;" />
-        </div>
-        <button id="exportBtn" class="small">📥 Xuất CSV</button>
-        <button id="importBtn" class="small ghost">📤 Nhập CSV</button>
-        <input id="importFile" type="file" accept=".csv,text/csv" style="display:none" />
+      <div class="search-box">
+        <span class="search-icon">🔍</span>
+        <input id="searchInput" type="text" placeholder="Tìm kiếm trong danh sách..." />
       </div>
 
-      <div id="log" class="status-success">Chuẩn bị...</div>
+      <div class="controls">
+        <button id="clearBtn" class="ghost small danger">🗑️ Xóa danh sách</button>
+        <button id="exportBtn" class="small">📥 Xuất CSV</button>
+        <input id="importFile" type="file" accept=".csv,text/csv" style="display:none" />
+        <button id="importBtn" class="small ghost">📤 Nhập CSV</button>
+      </div>
+
+      <div id="log" class="status-success">Đang khởi tạo camera...</div>
     </div>
 
     <div class="card">
       <h3>📋 Danh sách kiểm kê</h3>
-      <div style="max-height:400px; overflow-y:auto;">
+      <div style="max-height: 400px; overflow-y: auto;">
         <table id="table">
           <thead>
-            <tr><th>Mã</th><th>Số lượng</th><th>Hành động</th></tr>
+            <tr>
+              <th>Mã</th>
+              <th>Số lượng</th>
+              <th>Hành động</th>
+            </tr>
           </thead>
-          <tbody><tr><td colspan="3" class="empty-state">Danh sách trống</td></tr></tbody>
+          <tbody>
+            <tr>
+              <td colspan="3" class="empty-state">Danh sách trống</td>
+            </tr>
+          </tbody>
         </table>
       </div>
-      <div style="margin-top:12px; padding:8px; background:#f8f9fa; border-radius:4px;">
+      <div style="margin-top: 12px; padding: 8px; background: #f8f9fa; border-radius: 4px;">
         Tổng mục: <strong id="count">0</strong> — Tổng số lượng: <strong id="total">0</strong>
       </div>
     </div>
   </div>
 
   <footer>
-    Ứng dụng chạy tốt nhất trên HTTPS hoặc localhost. Dữ liệu lưu cục bộ trong trình duyệt.
+    Ứng dụng chạy tốt nhất trên HTTPS (GitHub Pages) hoặc localhost.
+    <br>Dữ liệu được lưu trữ cục bộ trong trình duyệt của bạn.
   </footer>
 
   <div id="notification" class="notification"></div>
 
   <!-- ZXing library -->
   <script src="https://unpkg.com/@zxing/library@0.18.6"></script>
-
   <script>
-    // ---------- DOM ----------
+    // --- DOM Elements ---
     const video = document.getElementById('video');
     const deviceSelect = document.getElementById('deviceSelect');
-    const openCameraBtn = document.getElementById('openCameraBtn');
-    const toggleAutoBtn = document.getElementById('toggleAutoBtn');
-    const flashToggle = document.getElementById('flashToggle');
     const captureBtn = document.getElementById('captureBtn');
     const decodedEl = document.getElementById('decoded');
     const filteredEl = document.getElementById('filtered');
@@ -174,31 +622,34 @@
     const logEl = document.getElementById('log');
     const searchInput = document.getElementById('searchInput');
     const notification = document.getElementById('notification');
-    const toggleAuto = toggleAutoBtn;
+    const autoScanToggle = document.getElementById('autoScanToggle');
+    const flashToggle = document.getElementById('flashToggle');
     const flashEffect = document.getElementById('flashEffect');
 
-    // ---------- State ----------
+    // --- Application State ---
     const inventory = new Map();
     const codeReader = new ZXing.BrowserMultiFormatReader();
     let currentStream = null;
     let selectedDeviceId = null;
-    let lastCode = '';
-    let lastTime = 0;
-    let isAutoScan = true;
+    let lastCode = '', lastTime = 0;
     let isScanning = false;
-    let currentTrack = null;
-    let torchOn = false;
+    let isAutoScan = true;
+    let flashEnabled = false;
+    let torchEnabled = false;
 
-    // ---------- Helpers ----------
-    function showNotification(msg, type = 'success', duration = 3000) {
-      notification.textContent = msg;
+    // --- Utility Functions ---
+    function showNotification(message, type = 'success', duration = 3000) {
+      notification.textContent = message;
       notification.className = `notification ${type} show`;
-      setTimeout(() => notification.classList.remove('show'), duration);
+      
+      setTimeout(() => {
+        notification.classList.remove('show');
+      }, duration);
     }
 
-    function log(msg, typeClass = 'status-success') {
+    function log(msg, type = 'status-success') {
       logEl.textContent = msg;
-      logEl.className = typeClass;
+      logEl.className = type;
     }
 
     function escapeHtml(s) {
@@ -218,28 +669,41 @@
     }
 
     function saveLocal() {
-      try {
-        localStorage.setItem('inventory', JSON.stringify([...inventory.values()]));
-        localStorage.setItem('inventory_filter', JSON.stringify({ start: filterStart.value, length: filterLength.value }));
-      } catch(e) { console.warn('saveLocal', e); }
+      localStorage.setItem('inventory', JSON.stringify([...inventory.values()]));
+      localStorage.setItem('inventory_filter', JSON.stringify({
+        start: filterStart.value,
+        length: filterLength.value
+      }));
     }
 
     function loadLocal() {
       try {
         const arr = JSON.parse(localStorage.getItem('inventory') || '[]');
         inventory.clear();
-        for (const v of arr) if (v && v.code) inventory.set(v.code, v);
+        for (const v of arr) {
+          if (v && v.code) inventory.set(v.code, v);
+        }
+        
         const filterSettings = JSON.parse(localStorage.getItem('inventory_filter') || '{}');
         if (filterSettings.start) filterStart.value = filterSettings.start;
         if (filterSettings.length !== undefined) filterLength.value = filterSettings.length;
-      } catch(e) { console.warn('loadLocal', e); }
+      } catch (e) {
+        console.warn('loadLocal error', e);
+      }
     }
 
     function renderTable(searchTerm = '') {
       tableBody.innerHTML = '';
-      let total = 0; let hasItems = false;
+      let total = 0;
+      let hasItems = false;
+      
       for (const [k, v] of inventory.entries()) {
-        if (searchTerm && !v.code.toLowerCase().includes(searchTerm.toLowerCase())) continue;
+        // Filter by search term if provided
+        if (searchTerm && 
+            !v.code.toLowerCase().includes(searchTerm.toLowerCase())) {
+          continue;
+        }
+        
         const tr = document.createElement('tr');
         tr.innerHTML = `
           <td>${escapeHtml(v.code)}</td>
@@ -250,11 +714,19 @@
         total += Number(v.qty) || 0;
         hasItems = true;
       }
+      
       if (!hasItems) {
-        tableBody.innerHTML = `<tr><td colspan="3" class="empty-state">${searchTerm ? 'Không tìm thấy kết quả phù hợp' : 'Danh sách trống'}</td></tr>`;
+        tableBody.innerHTML = `
+          <tr>
+            <td colspan="3" class="empty-state">${searchTerm ? 'Không tìm thấy kết quả phù hợp' : 'Danh sách trống'}</td>
+          </tr>
+        `;
       }
+      
       countEl.textContent = inventory.size;
       totalEl.textContent = total;
+      
+      // Add event listeners to delete buttons
       tableBody.querySelectorAll('button').forEach(b => {
         b.addEventListener('click', ev => {
           const code = ev.currentTarget.getAttribute('data-code');
@@ -268,236 +740,215 @@
       });
     }
 
-    // ---------- Camera & Devices ----------
+    // --- Camera Management ---
     function stopStream() {
       if (currentStream) {
         currentStream.getTracks().forEach(t => t.stop());
         currentStream = null;
       }
-      try { codeReader.reset(); } catch(e){}
+      try {
+        codeReader.reset();
+      } catch (e) {
+        // Ignore reset errors
+      }
       video.srcObject = null;
       isScanning = false;
-      currentTrack = null;
     }
 
-    // enumerate devices (after permission) and fill select
     async function listCameras() {
       try {
-        const devices = await navigator.mediaDevices.enumerateDevices();
-        const videoInputs = devices.filter(d => d.kind === 'videoinput');
+        const devices = await codeReader.listVideoInputDevices();
         deviceSelect.innerHTML = '';
-        videoInputs.forEach((d, i) => {
+        
+        devices.forEach((d, i) => {
           const opt = document.createElement('option');
           opt.value = d.deviceId;
-          opt.textContent = d.label || `Camera ${i+1}`;
+          opt.textContent = d.label || (`Camera ${i + 1}`);
           deviceSelect.appendChild(opt);
         });
-        if (videoInputs.length) {
-          // try pick rear if label contains back/rear/environment
-          let back = videoInputs.find(d => /back|rear|environment|wide/i.test(d.label));
-          if (!back) back = videoInputs[videoInputs.length-1];
-          selectedDeviceId = back.deviceId;
+        
+        if (devices.length) {
+          // Try to select rear camera by default
+          let back = devices.find(d => /back|rear|environment/i.test(d.label));
+          if (!back) back = devices[devices.length - 1];
+          selectedDeviceId = back.deviceId || devices[0].deviceId;
           deviceSelect.value = selectedDeviceId;
-          log(`Tìm thấy ${videoInputs.length} camera. Mặc định: ${back.label || deviceSelect.options[0].text}`, 'status-success');
+          log(`Tìm thấy ${devices.length} camera. Chọn mặc định: ${back ? back.label : deviceSelect.options[0].text}`);
         } else {
           log('Không tìm thấy camera nào.', 'status-error');
         }
       } catch (e) {
-        console.warn('listCameras error', e);
-        log('Lỗi khi liệt kê thiết bị: ' + (e?.message || e), 'status-error');
+        log('Lỗi liệt kê camera: ' + (e?.message || e), 'status-error');
       }
     }
 
-    async function startCamera(deviceId = null) {
-      // ensure secure context
-      if (!('mediaDevices' in navigator) || !navigator.mediaDevices.getUserMedia) {
-        log('Trình duyệt không hỗ trợ Camera API.', 'status-error');
-        showNotification('Trình duyệt không hỗ trợ camera', 'error', 5000);
-        return;
-      }
-
-      stopStream();
-
-      // constraints
-      const constraints = {
-        video: {
-          width: { ideal: 1280 },
-          height: { ideal: 720 },
-          ...(deviceId ? { deviceId: { exact: deviceId } } : { facingMode: { ideal: 'environment' } })
-        },
-        audio: false
-      };
-
-      try {
-        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
-        video.srcObject = currentStream;
-        await video.play();
-        // store primary track for torch control
-        currentTrack = currentStream.getVideoTracks()[0] || null;
-        isScanning = false; // will start when user enables auto-scan
-        log('Camera đã kết nối. Bạn có thể quét mã.', 'status-success');
-
-        // After permission granted, list devices to get labels
-        await listCameras();
-
-        // If auto-scan enabled, start decoder
-        if (isAutoScan) startAutoScan();
-
-      } catch (e) {
-        console.error('startCamera error', e);
-        if (e && e.name === 'NotAllowedError') {
-          log('Quyền truy cập camera bị từ chối. Vui lòng cấp quyền.', 'status-error');
-          showNotification('Vui lòng cấp quyền camera cho trang này', 'error', 6000);
-        } else if (e && e.name === 'NotFoundError') {
-          log('Không tìm thấy camera (NotFound).', 'status-error');
-          showNotification('Không tìm thấy camera trên thiết bị', 'error', 5000);
-        } else {
-          log('Lỗi khi mở camera: ' + (e?.message || e), 'status-error');
-          showNotification('Lỗi khi mở camera: ' + (e?.message || e), 'error', 5000);
-        }
-      }
-    }
-
-    // Start ZXing auto decode from the selected device
-    function startAutoScan() {
-      if (!currentStream) {
-        log('Camera chưa sẵn sàng để quét.', 'status-error');
-        return;
-      }
+    async function startCamera() {
       if (isScanning) return;
+      
+      stopStream();
+      video.setAttribute('playsinline', '');
+      
       try {
-        // decodeFromVideoDevice handles internal getUserMedia if deviceId passed.
-        // But we already have currentStream — so we use decodeFromVideoElement for continuous decoding.
-        codeReader.decodeFromVideoElementContinuously(video, (result, err) => {
+        // Try to use selected device
+        if (deviceSelect.value) {
+          selectedDeviceId = deviceSelect.value;
+          const constraints = { 
+            video: { 
+              deviceId: { exact: selectedDeviceId },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            } 
+          };
+          
+          currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = currentStream;
+          await video.play();
+        } else {
+          // Fallback to environment camera
+          const constraints = { 
+            video: { 
+              facingMode: { ideal: "environment" },
+              width: { ideal: 1280 },
+              height: { ideal: 720 }
+            } 
+          };
+          
+          currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+          video.srcObject = currentStream;
+          await video.play();
+        }
+        
+        // Start scanning if auto-scan is enabled
+        if (isAutoScan) {
+          startAutoScan();
+        }
+        
+        log('Camera đã kết nối. Đưa mã vào khung để quét.', 'status-success');
+      } catch (error) {
+        log('Lỗi kết nối camera: ' + (error?.message || error), 'status-error');
+        showNotification('Không thể kết nối camera. Vui lòng kiểm tra quyền truy cập.', 'error', 5000);
+      }
+    }
+
+    function startAutoScan() {
+      if (!currentStream || !isAutoScan) return;
+      
+      try {
+        codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, err) => {
           if (result) handleResult(result.text);
-          else if (err && !(err instanceof ZXing.NotFoundException)) {
+          if (err && !(err instanceof ZXing.NotFoundException)) {
             console.warn('Decode error:', err);
           }
         });
+        
         isScanning = true;
         log('Đang quét tự động...', 'status-success');
-      } catch (e) {
-        console.error('startAutoScan error', e);
-        log('Lỗi khi bật quét tự động: ' + (e?.message || e), 'status-error');
+      } catch (error) {
+        console.error('Auto scan error:', error);
       }
     }
 
     function stopAutoScan() {
       try {
         codeReader.reset();
+        isScanning = false;
       } catch (e) {
-        console.warn('stopAutoScan reset err', e);
+        // Ignore reset errors
       }
-      isScanning = false;
     }
 
-    // Single-frame capture & decode
-    async function captureImageAndDecode() {
+    function captureImage() {
       if (!currentStream) {
         showNotification('Camera chưa sẵn sàng!', 'error');
         return;
       }
-      // flash visual
+      
+      // Show flash effect
       flashEffect.classList.add('flash-active');
-      setTimeout(()=>flashEffect.classList.remove('flash-active'), 300);
-
+      setTimeout(() => {
+        flashEffect.classList.remove('flash-active');
+      }, 300);
+      
+      // Try to decode from current video frame
       try {
-        // draw current frame to canvas and decode using ZXing from canvas blob
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth || 1280;
-        canvas.height = video.videoHeight || 720;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-        // convert to blob
-        const blob = await new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
-        if (!blob) { showNotification('Không thể lấy ảnh từ video', 'error'); return; }
-
-        // create an <img> to feed into ZXing.decodeFromImageElement
-        const img = new Image();
-        img.src = URL.createObjectURL(blob);
-        img.onload = async () => {
-          try {
-            const result = await codeReader.decodeFromImageElement(img);
-            if (result && result.text) {
-              handleResult(result.text);
-              showNotification('Đã chụp và quét mã thành công', 'success', 2000);
-            } else {
-              showNotification('Không tìm thấy mã vạch trong hình', 'warning', 2000);
-            }
-          } catch (err) {
-            console.warn('decodeFromImageElement err', err);
-            showNotification('Không thể đọc mã vạch từ ảnh', 'error', 2500);
-          } finally {
-            URL.revokeObjectURL(img.src);
+        codeReader.decodeFromVideoElement(video).then(result => {
+          if (result) {
+            handleResult(result.text);
+            showNotification('Đã chụp và quét mã thành công', 'success');
+          } else {
+            showNotification('Không tìm thấy mã vạch trong ảnh', 'warning');
           }
-        };
-        img.onerror = () => {
-          showNotification('Lỗi tải ảnh để quét', 'error');
-          URL.revokeObjectURL(img.src);
-        };
-      } catch (e) {
-        console.error('captureImageAndDecode error', e);
+        }).catch(err => {
+          console.warn('Capture decode error:', err);
+          showNotification('Không thể đọc mã vạch', 'error');
+        });
+      } catch (error) {
+        console.error('Capture error:', error);
         showNotification('Lỗi khi chụp ảnh', 'error');
       }
     }
 
-    // Torch control (đèn pin) — nếu thiết bị hỗ trợ
-    async function setTorch(on) {
-      if (!currentTrack) {
-        showNotification('Không có stream để điều khiển torch', 'warning');
-        return;
-      }
-      try {
-        const capabilities = currentTrack.getCapabilities();
-        if (!capabilities.torch) {
-          showNotification('Thiết bị không hỗ trợ torch', 'warning');
-          return;
-        }
-        await currentTrack.applyConstraints({ advanced: [{ torch: on }] });
-        torchOn = on;
-        flashToggle.classList.toggle('warning', torchOn);
-        flashToggle.textContent = torchOn ? '💡 Flash' : '🔦 Flash';
-        showNotification(torchOn ? 'Torch bật' : 'Torch tắt', 'success');
-      } catch (e) {
-        console.warn('setTorch error', e);
-        showNotification('Không thể điều khiển torch: ' + (e?.message || e), 'error');
-      }
-    }
-
-    // ---------- Barcode handling ----------
+    // --- Barcode Result Handling ---
     function handleResult(code) {
       const now = Date.now();
+      // Prevent duplicate scans within 1.5 seconds
       if (code === lastCode && now - lastTime < 1500) return;
-      lastCode = code; lastTime = now;
+      
+      lastCode = code;
+      lastTime = now;
+      
       decodedEl.textContent = code;
       const filtered = applyFilter(code);
       filteredEl.textContent = filtered || '(trống)';
+      
+      // Auto-add if code doesn't exist, or focus quantity for update
       if (!inventory.has(filtered)) {
         addBtn.focus();
       } else {
         qtyInput.focus();
         qtyInput.select();
       }
-      showNotification(`Đã quét mã: ${code}`, 'success', 1500);
+      
+      showNotification(`Đã quét mã: ${code}`, 'success', 2000);
     }
 
+    // --- Quantity Validation ---
     function validateQuantity() {
       let value = parseInt(qtyInput.value);
-      if (isNaN(value) || value < 1) { qtyInput.value = 1; return 1; }
+      if (isNaN(value) || value < 1) {
+        qtyInput.value = 1;
+        return 1;
+      }
       return value;
     }
 
-    // ---------- Event wiring ----------
-    decBtn.addEventListener('click', ()=> { qtyInput.value = Math.max(1, Number(qtyInput.value||1) - 1); validateQuantity(); });
-    incBtn.addEventListener('click', ()=> { qtyInput.value = Number(qtyInput.value||0) + 1; validateQuantity(); });
+    // --- Event Listeners ---
+    incBtn.addEventListener('click', () => {
+      qtyInput.value = Number(qtyInput.value || 0) + 1;
+      validateQuantity();
+    });
+    
+    decBtn.addEventListener('click', () => {
+      qtyInput.value = Math.max(1, Number(qtyInput.value || 1) - 1);
+      validateQuantity();
+    });
+    
     qtyInput.addEventListener('change', validateQuantity);
     qtyInput.addEventListener('blur', validateQuantity);
 
     addBtn.addEventListener('click', () => {
-      const code = filteredEl.textContent && filteredEl.textContent !== '(chưa có)' && filteredEl.textContent !== '(trống)' ? filteredEl.textContent.trim() : null;
+      const code = filteredEl.textContent && 
+                   filteredEl.textContent !== '(chưa có)' && 
+                   filteredEl.textContent !== '(trống)' ? 
+                   filteredEl.textContent.trim() : null;
+      
       const qty = validateQuantity();
-      if (!code) { showNotification('Chưa có mã để thêm!', 'error'); return; }
+      
+      if (!code) {
+        showNotification('Chưa có mã để thêm!', 'error');
+        return;
+      }
+      
       if (inventory.has(code)) {
         inventory.get(code).qty += qty;
         showNotification(`Đã cập nhật số lượng cho "${code}"`, 'success');
@@ -505,128 +956,181 @@
         inventory.set(code, { code, qty });
         showNotification(`Đã thêm sản phẩm "${code}" vào danh sách`, 'success');
       }
-      saveLocal(); renderTable(searchInput.value); qtyInput.value = 1;
+      
+      saveLocal();
+      renderTable(searchInput.value);
+      qtyInput.value = 1; // Reset quantity after adding
     });
 
-    exportBtn.addEventListener('click', ()=> {
-      if (inventory.size === 0) { showNotification('Danh sách trống, không có gì để xuất!', 'warning'); return; }
-      const rows = [['Mã','Số lượng']];
-      for (const [k,v] of inventory.entries()) rows.push([v.code, v.qty]);
-      // add BOM so Excel đọc tiếng Việt tốt hơn
-      const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
-      const blob = new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8;' });
+    clearBtn.addEventListener('click', () => {
+      if (inventory.size === 0) {
+        showNotification('Danh sách đã trống!', 'warning');
+        return;
+      }
+      
+      if (confirm(`Xóa toàn bộ ${inventory.size} mục trong danh sách?`)) {
+        inventory.clear();
+        saveLocal();
+        renderTable();
+        showNotification('Đã xóa toàn bộ danh sách', 'success');
+      }
+    });
+
+    exportBtn.addEventListener('click', () => {
+      if (inventory.size === 0) {
+        showNotification('Danh sách trống, không có gì để xuất!', 'warning');
+        return;
+      }
+      
+      const rows = [['Mã', 'Số lượng']];
+      for (const [k, v] of inventory.entries()) {
+        rows.push([v.code, v.qty]);
+      }
+      
+      const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g, '""') + '"').join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
-      const a = document.createElement('a'); a.href = url;
+      const a = document.createElement('a');
+      a.href = url;
       a.download = `inventory-${new Date().toISOString().split('T')[0]}.csv`;
-      document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      
       showNotification(`Đã xuất ${inventory.size} mục ra file CSV`, 'success');
     });
 
-    importBtn.addEventListener('click', ()=> importFile.click());
+    importBtn.addEventListener('click', () => importFile.click());
+    
     importFile.addEventListener('change', e => {
-      const f = e.target.files[0]; if (!f) return;
+      const f = e.target.files[0];
+      if (!f) return;
+      
       const reader = new FileReader();
-      reader.onload = ()=> {
+      reader.onload = () => {
         try {
-          const lines = reader.result.split(/\r?\n/).map(l=>l.trim()).filter(Boolean);
-          let imported = 0;
-          for (let i=1;i<lines.length;i++){
-            const parts = lines[i].split(',').map(p => p.replace(/^"|"$/g,'').trim());
-            if (parts.length<2) continue;
-            const code = parts[0]||`imp-${Date.now()}-${i}`;
-            const qty = Number(parts[1])||0;
-            if (qty>0){
-              if (inventory.has(code)) inventory.get(code).qty += qty;
-              else inventory.set(code, { code, qty });
-              imported++;
+          const lines = reader.result.split('\n').map(l => l.trim()).filter(Boolean);
+          let importedCount = 0;
+          
+          for (let i = 1; i < lines.length; i++) {
+            const parts = splitCsvLine(lines[i]);
+            if (parts.length < 2) continue;
+            
+            const code = parts[0]?.trim() || `imp-${Date.now()}-${i}`;
+            const qty = Number(parts[1]) || 0;
+            
+            if (qty > 0) {
+              if (inventory.has(code)) {
+                inventory.get(code).qty += qty;
+              } else {
+                inventory.set(code, { code, qty });
+              }
+              importedCount++;
             }
           }
-          saveLocal(); renderTable(searchInput.value);
-          showNotification(`Đã nhập ${imported} mục từ file CSV`, 'success');
-        } catch(err){
-          showNotification('Lỗi khi đọc file CSV: ' + err.message, 'error');
+          
+          saveLocal();
+          renderTable(searchInput.value);
+          showNotification(`Đã nhập ${importedCount} mục từ file CSV`, 'success');
+        } catch (error) {
+          showNotification('Lỗi khi đọc file CSV: ' + error.message, 'error');
         }
+        
         importFile.value = '';
       };
-      reader.onerror = ()=> { showNotification('Lỗi khi đọc file', 'error'); importFile.value = ''; };
+      
+      reader.onerror = () => {
+        showNotification('Lỗi khi đọc file', 'error');
+        importFile.value = '';
+      };
+      
       reader.readAsText(f);
     });
 
+    function splitCsvLine(line) {
+      const regex = /(?:,|\n|^)("(?:(?:"")*[^"]*)*"|[^",\n]*|(?:\n|$))/g;
+      const result = [];
+      let match;
+      
+      while ((match = regex.exec(line))) {
+        let value = match[1] || '';
+        if (value.startsWith('"') && value.endsWith('"')) {
+          value = value.slice(1, -1).replace(/""/g, '"');
+        }
+        result.push(value);
+      }
+      
+      return result;
+    }
+
     deviceSelect.addEventListener('change', () => {
-      selectedDeviceId = deviceSelect.value;
-      // restart camera with selected device
-      startCamera(selectedDeviceId);
+      stopAutoScan();
+      startCamera();
     });
 
-    openCameraBtn.addEventListener('click', async () => {
-      // ensure we run in secure context or localhost
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        showNotification('Camera chỉ hoạt động trên HTTPS hoặc localhost.', 'error', 6000);
-        log('Yêu cầu HTTPS hoặc localhost để truy cập camera.', 'status-error');
-        return;
-      }
-      // request a tiny stream to prompt permission and enumerate devices
-      try {
-        await startCamera(deviceSelect.value || null);
-      } catch (e) {
-        console.error('openCameraBtn click error', e);
+    captureBtn.addEventListener('click', captureImage);
+
+    autoScanToggle.addEventListener('change', () => {
+      isAutoScan = autoScanToggle.checked;
+      if (isAutoScan && currentStream) {
+        startAutoScan();
+        log('Đã bật chế độ quét tự động', 'status-success');
+      } else {
+        stopAutoScan();
+        log('Đã tắt chế độ quét tự động', 'status-success');
       }
     });
 
-    toggleAutoBtn.addEventListener('click', ()=> {
-      isAutoScan = !isAutoScan;
-      toggleAutoBtn.textContent = `🔁 Quét tự động: ${isAutoScan ? 'ON' : 'OFF'}`;
-      if (isAutoScan) startAutoScan(); else stopAutoScan();
+    flashToggle.addEventListener('click', () => {
+      flashEnabled = !flashEnabled;
+      flashToggle.textContent = flashEnabled ? '💡 Flash' : '🔦 Flash';
+      flashToggle.classList.toggle('warning', flashEnabled);
     });
 
-    flashToggle.addEventListener('click', async () => {
-      if (!currentTrack) { showNotification('Camera chưa sẵn sàng để điều khiển flash', 'warning'); return; }
-      const caps = currentTrack.getCapabilities ? currentTrack.getCapabilities() : {};
-      if (!caps.torch) {
-        showNotification('Thiết bị không hỗ trợ torch (flash).', 'warning');
-        return;
-      }
-      await setTorch(!torchOn);
+    filterStart.addEventListener('input', () => {
+      saveLocal();
+      if (lastCode) filteredEl.textContent = applyFilter(lastCode);
+    });
+    
+    filterLength.addEventListener('input', () => {
+      saveLocal();
+      if (lastCode) filteredEl.textContent = applyFilter(lastCode);
     });
 
-    captureBtn.addEventListener('click', captureImageAndDecode);
+    searchInput.addEventListener('input', () => {
+      renderTable(searchInput.value);
+    });
 
-    searchInput.addEventListener('input', ()=> renderTable(searchInput.value));
-
-    filterStart.addEventListener('input', ()=> { saveLocal(); if (lastCode) filteredEl.textContent = applyFilter(lastCode); });
-    filterLength.addEventListener('input', ()=> { saveLocal(); if (lastCode) filteredEl.textContent = applyFilter(lastCode); });
-
-    // ---------- Init ----------
-    (async function init(){
+    // --- Initialize Application ---
+    (async function init() {
+      // Set up notification element
       notification.innerHTML = 'ⓘ ';
-      loadLocal(); renderTable();
-      // If insecure and not localhost, show warning (but still allow user to press "Mở camera")
-      if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') {
-        log('Khuyến cáo: cần HTTPS hoặc localhost để truy cập camera.', 'status-error');
-        showNotification('Trang không chạy qua HTTPS — bạn cần HTTPS hoặc localhost để truy cập camera.', 'warning', 6000);
-      }
-
-      // Try to prompt permission early so enumerateDevices returns labels
+      
+      // Populate camera list
       try {
-        // Request minimal permission to get labels; if user denies we still handle gracefully
-        const stream = await navigator.mediaDevices.getUserMedia({ video:true, audio:false });
-        // stop immediate — we just wanted labels / prompt
-        stream.getTracks().forEach(t => t.stop());
+        await listCameras();
       } catch (e) {
-        // user might deny — that's ok, we'll handle when they click mở camera
-        console.warn('Permission prompt skipped/denied:', e);
+        console.warn('Init listCameras error:', e);
       }
-
-      // Now list devices (labels available if permission granted)
-      try { await listCameras(); }
-      catch(e){ console.warn('init listCameras err', e); }
-
-      log('Ứng dụng đã sẵn sàng. Nhấn "Mở camera" để bắt đầu.', 'status-success');
+      
+      // Load saved data
+      loadLocal();
+      renderTable();
+      
+      // Start camera automatically
+      if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+        startCamera();
+      } else {
+        log('Trình duyệt không hỗ trợ truy cập camera.', 'status-error');
+      }
+      
+      log('Ứng dụng đã sẵn sàng.', 'status-success');
     })();
 
-    // Clean up on unload
-    window.addEventListener('pagehide', ()=> stopStream());
-    window.addEventListener('beforeunload', ()=> stopStream());
+    // Clean up on page unload
+    window.addEventListener('pagehide', stopStream);
+    window.addEventListener('beforeunload', stopStream);
   </script>
 </body>
 </html>
