@@ -59,7 +59,7 @@
       <div class="controls">
         <button id="clearBtn" class="ghost small">Xóa danh sách</button>
         <button id="exportBtn" class="small">Xuất CSV</button>
-        <input id="importFile" type="file" accept="text/csv" style="display:none" />
+        <input id="importFile" type="file" accept=".csv,text/csv" style="display:none" />
         <button id="importBtn" class="small ghost">Nhập CSV</button>
       </div>
 
@@ -104,11 +104,12 @@
     const filterLength = document.getElementById('filterLength');
     const logEl = document.getElementById('log');
 
-    // --- Data ---
+    // --- Data & ZXing ---
     const inventory = new Map();
     const codeReader = new ZXing.BrowserMultiFormatReader();
+    let currentStream = null;
     let selectedDeviceId = null;
-    let lastCode='', lastTime=0;
+    let lastCode = '', lastTime = 0;
 
     // --- Helpers ---
     function log(msg){ logEl.textContent = msg; }
@@ -116,162 +117,282 @@
     function escapeAttr(s){ return String(s||'').replace(/"/g,'&quot;'); }
 
     function applyFilter(code){
-      const start = Number(filterStart.value||1)-1;
-      const len = Number(filterLength.value||0);
+      const start = Math.max(0, Number(filterStart.value||1)-1);
+      const len = Math.max(0, Number(filterLength.value||0));
       if(!code) return '';
       if(len>0) return code.substr(start,len);
       return code.substr(start);
     }
 
-    function saveLocal(){
-      localStorage.setItem("inventory", JSON.stringify([...inventory.values()]));
-    }
-
+    function saveLocal(){ localStorage.setItem('inventory', JSON.stringify([...inventory.values()])); }
     function loadLocal(){
       try{
-        const data = JSON.parse(localStorage.getItem("inventory")||"[]");
-        for(const v of data){
-          inventory.set(v.code,v);
-        }
-      }catch(e){ console.error(e); }
+        const arr = JSON.parse(localStorage.getItem('inventory') || '[]');
+        inventory.clear();
+        for(const v of arr) if(v && v.code) inventory.set(v.code, v);
+      }catch(e){ console.warn('loadLocal error', e); }
     }
 
     function renderTable(){
-      tableBody.innerHTML='';
-      let total=0;
+      tableBody.innerHTML = '';
+      let total = 0;
       for(const [k,v] of inventory.entries()){
-        const tr=document.createElement('tr');
+        const tr = document.createElement('tr');
         tr.innerHTML = '<td>'+escapeHtml(v.code)+'</td><td>'+escapeHtml(v.name)+'</td><td>'+v.qty+'</td><td><button data-code="'+escapeAttr(v.code)+'" class="ghost small">Xóa</button></td>';
         tableBody.appendChild(tr);
-        total+=v.qty;
+        total += Number(v.qty) || 0;
       }
-      countEl.textContent=inventory.size;
-      totalEl.textContent=total;
-      tableBody.querySelectorAll('button').forEach(b=>b.addEventListener('click',ev=>{
+      countEl.textContent = inventory.size;
+      totalEl.textContent = total;
+      tableBody.querySelectorAll('button').forEach(b=>b.addEventListener('click', ev=>{
         inventory.delete(ev.currentTarget.getAttribute('data-code'));
         saveLocal(); renderTable();
       }));
     }
 
-    // --- Camera ---
+    // --- Camera utilities ---
+    function stopStream(){
+      if(currentStream){
+        currentStream.getTracks().forEach(t=>t.stop());
+        currentStream = null;
+      }
+      try{ codeReader.reset(); }catch(e){}
+      video.srcObject = null;
+    }
+
     async function listCameras(){
       try{
         const devices = await codeReader.listVideoInputDevices();
-        deviceSelect.innerHTML='';
+        deviceSelect.innerHTML = '';
         devices.forEach((d,i)=>{
-          const opt=document.createElement('option');
-          opt.value=d.deviceId;
-          opt.textContent=d.label||('Camera '+(i+1));
+          const opt = document.createElement('option');
+          opt.value = d.deviceId;
+          opt.textContent = d.label || ('Camera ' + (i+1));
           deviceSelect.appendChild(opt);
         });
         if(devices.length){
-          selectedDeviceId=devices[0].deviceId;
-          deviceSelect.value=selectedDeviceId;
-          log("Tìm thấy "+devices.length+" camera.");
-        }else{
-          log("Không tìm thấy camera nào.");
+          // try to pick a reasonable default
+          let back = devices.find(d => /back|rear|environment/i.test(d.label));
+          if(!back) back = devices[devices.length - 1];
+          selectedDeviceId = back.deviceId || devices[0].deviceId;
+          deviceSelect.value = selectedDeviceId;
+          log('Tìm thấy ' + devices.length + ' camera. Chọn mặc định: ' + (back ? back.label : deviceSelect.options[0].text));
+        } else {
+          log('Không tìm thấy camera nào.');
         }
       }catch(e){
-        log("Lỗi liệt kê camera: "+e.message);
+        log('Lỗi liệt kê camera: ' + (e && e.message ? e.message : e));
       }
     }
 
-    function startScan(){
-      if(!selectedDeviceId){
-        // fallback cho mobile: auto chọn camera sau
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } })
-          .then(stream=>{
-            video.srcObject=stream;
-            video.play();
-            log("Đang quét camera sau...");
-            codeReader.decodeFromVideoDevice(null, video, (result,err)=>{
-              if(result){ handleResult(result.text); }
-            });
-          })
-          .catch(e=>log("Không mở được camera: "+e.message));
+    // Try to open camera with facingMode environment first (mobile)
+    async function startScan(){
+      stopStream();
+      // for iOS, playsinline attribute is helpful
+      video.setAttribute('playsinline', '');
+
+      // 1) Try facingMode environment (most phones)
+      try {
+        log('Đang cố mở camera (facingMode: environment)...');
+        const constraints = { video: { facingMode: { exact: 'environment' } } };
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentStream;
+        await video.play();
+        // start ZXing decoding using the video element (let ZXing attach)
+        codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+          if(result) handleResult(result.text);
+          if(err && !(err instanceof ZXing.NotFoundException)) {
+            console.warn('decode error', err);
+            log('Lỗi quét: ' + err);
+          }
+        });
+        log('Camera sau đã mở. Đưa mã vào khung để quét.');
         return;
+      } catch (e) {
+        // fallback to less strict or deviceId mode
+        console.info('facingMode environment không khả dụng:', e && e.message ? e.message : e);
       }
-      codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result,err)=>{
-        if(result){ handleResult(result.text); }
-        if(err && !(err instanceof ZXing.NotFoundException)){
-          log("Lỗi quét: "+err);
+
+      // 2) If facingMode failed, try without exact (allow any environment)
+      try {
+        log('Thử mở camera với facingMode hint (any environment)...');
+        const constraints = { video: { facingMode: 'environment' } };
+        currentStream = await navigator.mediaDevices.getUserMedia(constraints);
+        video.srcObject = currentStream;
+        await video.play();
+        codeReader.decodeFromVideoDevice(null, video, (result, err) => {
+          if(result) handleResult(result.text);
+          if(err && !(err instanceof ZXing.NotFoundException)) {
+            console.warn('decode error', err);
+            log('Lỗi quét: ' + err);
+          }
+        });
+        log('Camera được mở (hint environment).');
+        return;
+      } catch (e) {
+        console.info('facingMode hint không khả dụng:', e && e.message ? e.message : e);
+      }
+
+      // 3) Fallback: list devices and use chosen deviceId (works on desktop + some mobiles)
+      try {
+        const devices = await codeReader.listVideoInputDevices();
+        if(!devices || devices.length === 0){
+          log('Không tìm thấy thiết bị camera.');
+          return;
         }
-      }).catch(e=>{
-        log("Không thể mở camera: "+e.message);
-      });
+
+        // choose device: prefer deviceSelect value or label contains back/rear, or last
+        let useId = deviceSelect.value || null;
+        if(!useId){
+          let back = devices.find(d => /back|rear|environment/i.test(d.label));
+          useId = (back && back.deviceId) || devices[devices.length - 1].deviceId;
+        }
+
+        selectedDeviceId = useId;
+        log('Mở camera theo deviceId: ' + (deviceSelect.selectedOptions[0] ? deviceSelect.selectedOptions[0].text : selectedDeviceId));
+        await codeReader.decodeFromVideoDevice(selectedDeviceId, video, (result, err) => {
+          if(result) handleResult(result.text);
+          if(err && !(err instanceof ZXing.NotFoundException)) {
+            console.warn('decode error', err);
+            log('Lỗi quét: ' + err);
+          }
+        });
+      } catch (e) {
+        log('Không thể mở camera: ' + (e && e.message ? e.message : e));
+      }
     }
 
-    function stopScan(){ codeReader.reset(); log("Đã dừng camera."); }
+    function stopScan(){
+      stopStream();
+      log('Đã dừng camera.');
+    }
 
-    // --- Logic ---
+    // --- Decoding result handling ---
     function handleResult(code){
-      const now=Date.now();
-      if(code===lastCode && now-lastTime<2000) return;
-      lastCode=code; lastTime=now;
-      decodedEl.textContent=code;
-      const filtered=applyFilter(code);
-      filteredEl.textContent=filtered||'(trống)';
+      const now = Date.now();
+      if(code === lastCode && now - lastTime < 1500) return; // ignore duplicates
+      lastCode = code; lastTime = now;
+      decodedEl.textContent = code;
+      const filtered = applyFilter(code);
+      filteredEl.textContent = filtered || '(trống)';
+      // Optionally auto-add: comment out if you prefer manual add
+      // autoAddFiltered(filtered);
     }
 
-    incBtn.addEventListener('click',()=> qtyInput.value=Number(qtyInput.value||0)+1);
-    decBtn.addEventListener('click',()=> qtyInput.value=Math.max(1,Number(qtyInput.value||1)-1));
+    // optional helper if you want to auto-add scanned codes:
+    // function autoAddFiltered(filtered){
+    //   if(!filtered) return;
+    //   const name = productNameInput.value.trim() || '(không tên)';
+    //   const qty = Math.max(1, Math.floor(Number(qtyInput.value)||1));
+    //   if(inventory.has(filtered)) inventory.get(filtered).qty += qty;
+    //   else inventory.set(filtered, { code: filtered, name, qty });
+    //   saveLocal(); renderTable();
+    // }
 
-    addBtn.addEventListener('click',()=>{
-      const code=filteredEl.textContent && filteredEl.textContent!=='(chưa có)' ? filteredEl.textContent.trim() : null;
-      const name=productNameInput.value.trim()||'(không tên)';
-      const qty=Math.max(1,Math.floor(Number(qtyInput.value)||1));
-      if(!code){ alert("Chưa có mã!"); return; }
-      if(inventory.has(code)) inventory.get(code).qty+=qty;
-      else inventory.set(code,{code,name,qty});
+    // --- UI actions ---
+    incBtn.addEventListener('click', ()=> qtyInput.value = Number(qtyInput.value||0) + 1);
+    decBtn.addEventListener('click', ()=> qtyInput.value = Math.max(1, Number(qtyInput.value||1) - 1));
+
+    addBtn.addEventListener('click', ()=>{
+      const code = filteredEl.textContent && filteredEl.textContent !== '(chưa có)' && filteredEl.textContent !== '(trống)' ? filteredEl.textContent.trim() : null;
+      const name = productNameInput.value.trim() || '(không tên)';
+      const qty = Math.max(1, Math.floor(Number(qtyInput.value) || 1));
+      if(!code){ alert('Chưa có mã!'); return; }
+      if(inventory.has(code)) inventory.get(code).qty += qty;
+      else inventory.set(code, { code, name, qty });
       saveLocal(); renderTable();
     });
 
-    clearBtn.addEventListener('click',()=>{ if(confirm("Xóa toàn bộ danh sách?")){ inventory.clear(); saveLocal(); renderTable(); }});
+    clearBtn.addEventListener('click', ()=>{
+      if(confirm('Xóa toàn bộ danh sách?')){
+        inventory.clear();
+        saveLocal(); renderTable();
+      }
+    });
 
-    exportBtn.addEventListener('click',()=>{
-      const rows=[['code','name','qty']];
-      for(const [k,v] of inventory.entries()) rows.push([v.code,v.name,v.qty]);
-      const csv=rows.map(r=>r.map(c=>'"'+String(c).replace(/"/g,'""')+'"').join(',')).join('\n');
-      const blob=new Blob([csv],{type:'text/csv;charset=utf-8;'});
-      const url=URL.createObjectURL(blob);
-      const a=document.createElement('a');
-      a.href=url; a.download='inventory.csv'; document.body.appendChild(a); a.click(); a.remove();
+    exportBtn.addEventListener('click', ()=>{
+      const rows = [['code','name','qty']];
+      for(const [k,v] of inventory.entries()) rows.push([v.code, v.name, v.qty]);
+      const csv = rows.map(r => r.map(c => '"' + String(c).replace(/"/g,'""') + '"').join(',')).join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'inventory.csv';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
       URL.revokeObjectURL(url);
     });
 
-    importBtn.addEventListener('click',()=>importFile.click());
-    importFile.addEventListener('change',e=>{
-      const f=e.target.files[0]; if(!f) return;
-      const reader=new FileReader();
-      reader.onload=()=>{
-        const lines=reader.result.split('\n').map(l=>l.trim()).filter(Boolean);
+    importBtn.addEventListener('click', ()=> importFile.click());
+    importFile.addEventListener('change', e=>{
+      const f = e.target.files[0]; if(!f) return;
+      const reader = new FileReader();
+      reader.onload = ()=>{
+        const lines = reader.result.split('\n').map(l=>l.trim()).filter(Boolean);
         for(let i=1;i<lines.length;i++){
-          const parts=lines[i].split(',').map(p=>p.replace(/^"?|"?$/g,''));
-          const code=parts[0]||('imp-'+Date.now()+'-'+i);
-          const name=parts[1]||'';
-          const qty=Number(parts[2]||0);
-          if(inventory.has(code)) inventory.get(code).qty+=qty;
-          else inventory.set(code,{code,name,qty});
+          const parts = splitCsvLine(lines[i]);
+          const code = parts[0] || ('imp-' + Date.now() + '-' + i);
+          const name = parts[1] || '';
+          const qty = Number(parts[2] || 0);
+          if(inventory.has(code)) inventory.get(code).qty += qty;
+          else inventory.set(code, { code, name, qty });
         }
         saveLocal(); renderTable();
+        importFile.value = '';
       };
       reader.readAsText(f);
     });
 
-    // --- Events ---
-    deviceSelect.addEventListener('change',()=> selectedDeviceId=deviceSelect.value);
-    startBtn.addEventListener('click',()=>{ startScan(); log("Đang quét..."); });
-    stopBtn.addEventListener('click',stopScan);
-    filterStart.addEventListener('input',()=>{ if(lastCode) filteredEl.textContent=applyFilter(lastCode); });
-    filterLength.addEventListener('input',()=>{ if(lastCode) filteredEl.textContent=applyFilter(lastCode); });
+    function splitCsvLine(line){
+      // simple CSV splitter that handles quotes
+      const res = [];
+      let cur = '', inQuote = false;
+      for(let i=0;i<line.length;i++){
+        const ch = line[i];
+        if(ch === '"' ){
+          if(inQuote && line[i+1] === '"'){ cur += '"'; i++; continue; }
+          inQuote = !inQuote;
+          continue;
+        }
+        if(ch === ',' && !inQuote){ res.push(cur); cur = ''; continue; }
+        cur += ch;
+      }
+      res.push(cur);
+      return res;
+    }
+
+    deviceSelect.addEventListener('change', ()=> {
+      selectedDeviceId = deviceSelect.value;
+    });
+
+    startBtn.addEventListener('click', ()=> {
+      // ensure permissions prompt appears (some browsers require user gesture)
+      startScan();
+    });
+
+    stopBtn.addEventListener('click', stopScan);
+
+    filterStart.addEventListener('input', ()=> { if(lastCode) filteredEl.textContent = applyFilter(lastCode); });
+    filterLength.addEventListener('input', ()=> { if(lastCode) filteredEl.textContent = applyFilter(lastCode); });
 
     // --- Init ---
-    (async()=>{
-      await listCameras();
+    (async function init(){
+      // populate camera list if possible
+      try {
+        // most browsers require a previous permission to reveal labels; we still attempt listing
+        await listCameras();
+      } catch(e){ console.warn('init listCameras', e); }
       loadLocal();
       renderTable();
-      stopBtn.disabled=false;
+      stopBtn.disabled = false;
+      log('Sẵn sàng. Bấm "Bắt đầu" và cho phép Camera khi trình duyệt hỏi.');
     })();
+
+    // Ensure we stop camera when page unloads
+    window.addEventListener('pagehide', stopStream);
+    window.addEventListener('beforeunload', stopStream);
   </script>
 </body>
 </html>
