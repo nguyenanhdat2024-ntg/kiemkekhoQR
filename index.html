@@ -1,0 +1,1461 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Chụp Vị Trí Xe</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: Arial, sans-serif; }
+        body { background: #f5f5f5; padding: 10px; color: #333; }
+        .container { max-width: 100%; }
+        .header { display: flex; justify-content: space-between; margin-bottom: 15px; flex-wrap: wrap; }
+        .header button { padding: 8px 12px; margin: 2px; background: #4CAF50; color: white; border: none; border-radius: 4px; }
+        .header button.delete { background: #f44336; }
+        .header button.download { background: #2196F3; }
+        .header button.save { background: #9C27B0; }
+        .header button.search { background: #FF9800; }
+        .form-group { margin-bottom: 10px; display: flex; align-items: center; }
+        .form-group label { width: 80px; font-weight: bold; }
+        .form-group input { flex: 1; padding: 8px; border: 1px solid #ddd; border-radius: 4px; text-transform: uppercase; }
+        .location-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; padding: 8px; background: white; border-radius: 4px; }
+        .location-name { flex: 1; font-weight: bold; padding: 5px; border: 1px dashed transparent; }
+        .location-name.editable { cursor: pointer; border-color: #ddd; }
+        .location-name.editable:hover { background-color: #f9f9f9; }
+        .location-name input { width: 100%; padding: 5px; border: 1px solid #4CAF50; border-radius: 4px; text-transform: uppercase; }
+        .location-actions { display: flex; }
+        .location-actions button { margin-left: 5px; padding: 6px 10px; border: none; border-radius: 4px; }
+        .btn-capture { background: #4CAF50; color: white; }
+        .btn-upload { background: #FF9800; color: white; }
+        .btn-check { background: #9C27B0; color: white; }
+        .has-image { background: #E1F5FE; }
+        #cameraModal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); z-index: 1000; }
+        #cameraContainer { position: relative; width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+        #videoElement { width: 100%; max-height: 80%; }
+        #captureButton { margin-top: 20px; padding: 15px 30px; background: #f44336; color: white; border: none; border-radius: 50%; font-size: 16px; }
+        #searchModal, #editModal, #downloadModal, #deleteModal { 
+            display: none; 
+            position: fixed; 
+            top: 50%; 
+            left: 50%; 
+            transform: translate(-50%, -50%); 
+            width: 90%; 
+            max-width: 500px;
+            background: white; 
+            z-index: 1000; 
+            color: #333; 
+            padding: 20px; 
+            border-radius: 8px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 10px;
+        }
+        .modal-header h2 {
+            margin: 0;
+        }
+        .close-btn {
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #999;
+        }
+        .modal-content {
+            margin-bottom: 15px;
+            max-height: 60vh;
+            overflow-y: auto;
+        }
+        .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+        .modal-footer button {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        .btn-confirm {
+            background: #4CAF50;
+            color: white;
+        }
+        .btn-cancel {
+            background: #f44336;
+            color: white;
+        }
+        #searchResults { margin-top: 20px; max-height: 300px; overflow-y: auto; }
+        .search-item { 
+            padding: 10px; 
+            border-bottom: 1px solid #eee; 
+            cursor: pointer;
+        }
+        .search-item:hover {
+            background: #f0f0f0;
+        }
+        .overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 999;
+        }
+        .edit-field {
+            margin-bottom: 15px;
+        }
+        .edit-field label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        .edit-field input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+        
+        /* Bảng thông tin đã chụp */
+        .captured-info {
+            margin-top: 20px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            overflow-x: auto;
+        }
+        
+        .captured-info h3 {
+            margin-bottom: 10px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #eee;
+        }
+        
+        .info-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10px;
+            font-size: 0.9em;
+        }
+        
+        .info-table th, .info-table td {
+            border: 1px solid #ddd;
+            padding: 8px;
+            text-align: center;
+        }
+        
+        .info-table th {
+            background-color: #f2f2f2;
+            position: sticky;
+            top: 0;
+        }
+        
+        .info-table tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .info-table tr:hover {
+            background-color: #f1f1f1;
+        }
+        
+        .info-marker {
+            color: #4CAF50;
+            font-weight: bold;
+        }
+        
+        .empty-info {
+            text-align: center;
+            color: #999;
+            padding: 20px;
+        }
+        
+        .progress-bar {
+            display: none;
+            width: 100%;
+            background-color: #f3f3f3;
+            border-radius: 4px;
+            margin: 10px 0;
+        }
+        
+        .progress {
+            width: 0%;
+            height: 10px;
+            background-color: #4CAF50;
+            border-radius: 4px;
+            transition: width 0.3s;
+        }
+        
+        .progress-text {
+            text-align: center;
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .company-item {
+            padding: 12px;
+            margin: 8px 0;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.3s;
+        }
+        
+        .company-item:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .company-item.selected {
+            background-color: #E1F5FE;
+            border-color: #4CAF50;
+        }
+        
+        .company-checkbox {
+            margin-right: 12px;
+            width: 18px;
+            height: 18px;
+        }
+        
+        .company-info {
+            flex: 1;
+        }
+        
+        .company-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        
+        .company-details {
+            font-size: 0.9em;
+            color: #666;
+        }
+        
+        .select-all {
+            margin-bottom: 15px;
+            padding: 10px;
+            background-color: #f0f0f0;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+        }
+        
+        .camera-error {
+            color: #f44336;
+            text-align: center;
+            padding: 20px;
+            background: rgba(244, 67, 54, 0.1);
+            border-radius: 8px;
+            margin: 10px;
+            max-width: 90%;
+        }
+        
+        .camera-error h3 {
+            margin-bottom: 10px;
+        }
+        
+        .camera-error p {
+            margin-bottom: 15px;
+        }
+        
+        .camera-error button {
+            padding: 8px 16px;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        
+        .camera-permission-guide {
+            background: white;
+            border-radius: 8px;
+            padding: 15px;
+            margin: 10px;
+            max-width: 90%;
+            text-align: left;
+        }
+        
+        .camera-permission-guide h3 {
+            color: #2196F3;
+            margin-bottom: 10px;
+            text-align: center;
+        }
+        
+        .camera-permission-guide ol {
+            padding-left: 20px;
+        }
+        
+        .camera-permission-guide li {
+            margin-bottom: 8px;
+        }
+        
+        .https-warning {
+            background-color: #fff3cd;
+            border: 1px solid #ffeeba;
+            color: #856404;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 10px 0;
+            text-align: center;
+        }
+        
+        @media (max-width: 768px) {
+            .info-table {
+                font-size: 0.8em;
+            }
+            
+            .info-table th, .info-table td {
+                padding: 6px 4px;
+            }
+            
+            .location-actions button {
+                padding: 4px 6px;
+                font-size: 0.8em;
+            }
+            
+            .header button {
+                padding: 6px 10px;
+                font-size: 0.9em;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Cảnh báo HTTPS -->
+        <div id="httpsWarning" class="https-warning" style="display: none;">
+            <p><strong>⚠️ Cảnh báo:</strong> Để sử dụng camera, trang web cần được truy cập qua HTTPS. Vui lòng sử dụng nút "Tải" để tải ảnh từ thiết bị.</p>
+        </div>
+        
+        <div class="header">
+            <button id="btnNew">Thêm</button>
+            <button id="btnDelete" class="delete">Xóa</button>
+            <button id="btnSave" class="save">Lưu</button>
+            <button id="btnSearch" class="search">Tìm</button>
+            <button id="btnDownload" class="download">Tải</button>
+        </div>
+        
+        <div class="form-group">
+            <label for="company">Đơn vị:</label>
+            <input type="text" id="company" placeholder="Nhập tên đơn vị">
+        </div>
+        
+        <div class="form-group">
+            <label for="plate">Biển số:</label>
+            <input type="text" id="plate" placeholder="Nhập biển số xe">
+        </div>
+        
+        <div class="form-group">
+            <label for="asset">Số tài:</label>
+            <input type="text" id="asset" placeholder="Nhập số tài">
+        </div>
+        
+        <div id="locationList">
+            <!-- Vị trí sẽ được thêm động bằng JavaScript -->
+        </div>
+        
+        <!-- Thanh tiến trình -->
+        <div class="progress-bar" id="progressBar">
+            <div class="progress" id="progress"></div>
+            <div class="progress-text" id="progressText">Đang xử lý...</div>
+        </div>
+        
+        <!-- Bảng thông tin đã chụp -->
+        <div class="captured-info">
+            <h3>Chụp vị trí</h3>
+            <div id="infoTableContainer">
+                <table class="info-table">
+                    <thead>
+                        <tr>
+                            <th>STT</th>
+                            <th>Đơn vị</th>
+                            <th>Biển số</th>
+                            <th>Số tài</th>
+                            <!-- Các cột vị trí sẽ được thêm động -->
+                            <th>Thao tác</th>
+                        </tr>
+                    </thead>
+                    <tbody id="infoTableBody">
+                        <tr>
+                            <td colspan="12" class="empty-info">Chưa có thông tin nào được chụp</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <!-- Modal camera -->
+    <div id="cameraModal">
+        <div id="cameraContainer">
+            <video id="videoElement" autoplay playsinline></video>
+            <button id="captureButton">Chụp</button>
+            <button id="closeCamera" style="position: absolute; top: 20px; right: 20px; background: #f44336; color: white; border: none; border-radius: 4px; padding: 8px 12px;">Đóng</button>
+            <div id="cameraErrorContainer" style="display: none;">
+                <div class="camera-error">
+                    <h3>Không thể truy cập camera</h3>
+                    <p id="cameraErrorMessage"></p>
+                    <button onclick="tryAgainCamera()">Thử lại</button>
+                    <button onclick="closeAllModals()">Đóng</button>
+                </div>
+            </div>
+            <div id="cameraPermissionGuide" style="display: none;">
+                <div class="camera-permission-guide">
+                    <h3>Hướng dẫn cấp quyền truy cập camera</h3>
+                    <ol>
+                        <li>Nhấn vào biểu tượng khóa hoặc thông tin trang web ở thanh địa chỉ</li>
+                        <li>Tìm mục "Camera" và chọn "Cho phép"</li>
+                        <li>Tải lại trang và thử lại</li>
+                        <li>Nếu vẫn không được, vui lòng kiểm tra cài đặt quyền của trình duyệt</li>
+                    </ol>
+                    <div style="text-align: center; margin-top: 15px;">
+                        <button onclick="tryAgainCamera()">Đã thực hiện xong, thử lại</button>
+                        <button onclick="closeAllModals()">Đóng</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <!-- Modal tìm kiếm -->
+    <div id="searchModal">
+        <div class="modal-header">
+            <h2>Tìm kiếm</h2>
+            <button class="close-btn" onclick="closeModal('searchModal')">×</button>
+        </div>
+        <div class="modal-content">
+            <input type="text" id="searchInput" placeholder="Nhập biển số hoặc số tài..." style="width: 100%; padding: 10px;">
+            <div id="searchResults" style="margin-top: 20px;"></div>
+        </div>
+    </div>
+    <!-- Modal tải về -->
+    <div id="downloadModal">
+        <div class="modal-header">
+            <h2>Chọn đơn vị để tải</h2>
+            <button class="close-btn" onclick="closeModal('downloadModal')">×</button>
+        </div>
+        <div class="modal-content">
+            <div class="select-all">
+                <input type="checkbox" id="selectAllDownload" onchange="toggleSelectAll('download')">
+                <label for="selectAllDownload" style="margin-left: 10px; font-weight: bold;">Chọn tất cả</label>
+            </div>
+            <div id="downloadCompaniesList">
+                <!-- Danh sách đơn vị sẽ được thêm ở đây -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('downloadModal')">Hủy</button>
+            <button class="btn-confirm" onclick="processDownload()">Tải về</button>
+        </div>
+    </div>
+    <!-- Modal xóa -->
+    <div id="deleteModal">
+        <div class="modal-header">
+            <h2>Chọn đơn vị để xóa</h2>
+            <button class="close-btn" onclick="closeModal('deleteModal')">×</button>
+        </div>
+        <div class="modal-content">
+            <div class="select-all">
+                <input type="checkbox" id="selectAllDelete" onchange="toggleSelectAll('delete')">
+                <label for="selectAllDelete" style="margin-left: 10px; font-weight: bold;">Chọn tất cả</label>
+            </div>
+            <div id="deleteCompaniesList">
+                <!-- Danh sách đơn vị sẽ được thêm ở đây -->
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-cancel" onclick="closeModal('deleteModal')">Hủy</button>
+            <button class="btn-confirm" onclick="processDelete()">Xóa</button>
+        </div>
+    </div>
+    <!-- Overlay -->
+    <div class="overlay" id="overlay" onclick="closeAllModals()"></div>
+    <script>
+        let currentLocation = '';
+        let stream = null;
+        let currentData = null;
+        let capturedImages = {};
+        let selectedDownloadCompanies = [];
+        let selectedDeleteCompanies = [];
+        let cameraError = null;
+        let isHttps = location.protocol === 'https:' || 
+                     location.hostname === 'localhost' || 
+                     location.hostname === '127.0.0.1';
+        
+        // Danh sách vị trí mặc định
+        let locations = [
+            { id: 'trai', defaultName: 'Trái', customName: '' },
+            { id: 'phai', defaultName: 'Phải', customName: '' },
+            { id: 'sau', defaultName: 'Sau', customName: '' },
+            { id: 'trong_xe', defaultName: 'Trong xe', customName: '' },
+            { id: 'goc_trai', defaultName: 'Góc trái', customName: '' },
+            { id: 'goc_phai', defaultName: 'Góc phải', customName: '' },
+            { id: 'so_odo', defaultName: 'Số odo', customName: '' }
+        ];
+        
+        // Khởi tạo ứng dụng
+        function initApp() {
+            loadLocationNames();
+            renderLocationList();
+            checkHttpsWarning();
+            updateCapturedInfoTable();
+            setupAutoUppercase();
+            setupEventListeners();
+        }
+        
+        // Thiết lập sự kiện
+        function setupEventListeners() {
+            document.getElementById('btnNew').addEventListener('click', function() {
+                if (confirm('Tạo mới? Dữ liệu hiện tại sẽ bị xóa.')) {
+                    document.getElementById('company').value = '';
+                    document.getElementById('plate').value = '';
+                    document.getElementById('asset').value = '';
+                    
+                    const locationRows = document.querySelectorAll('.location-row');
+                    locationRows.forEach(row => {
+                        row.classList.remove('has-image');
+                        const checkBtn = row.querySelector('.btn-check');
+                        checkBtn.style.display = 'none';
+                    });
+                }
+            });
+            
+            document.getElementById('btnDelete').addEventListener('click', openDeleteModal);
+            document.getElementById('btnSave').addEventListener('click', saveData);
+            document.getElementById('btnSearch').addEventListener('click', searchData);
+            document.getElementById('btnDownload').addEventListener('click', openDownloadModal);
+            document.getElementById('captureButton').addEventListener('click', captureImage);
+            document.getElementById('closeCamera').addEventListener('click', closeAllModals);
+        }
+        
+        // Thiết lập tự động viết hoa
+        function setupAutoUppercase() {
+            const inputs = document.querySelectorAll('input[type="text"]');
+            inputs.forEach(input => {
+                input.addEventListener('input', function() {
+                    this.value = this.value.toUpperCase();
+                });
+            });
+        }
+        
+        // Tải tên vị trí từ localStorage
+        function loadLocationNames() {
+            const savedLocations = localStorage.getItem('locationNames');
+            if (savedLocations) {
+                const parsedLocations = JSON.parse(savedLocations);
+                locations = locations.map(loc => {
+                    const savedLoc = parsedLocations.find(l => l.id === loc.id);
+                    return savedLoc ? { ...loc, customName: savedLoc.customName } : loc;
+                });
+            }
+        }
+        
+        // Lưu tên vị trí vào localStorage
+        function saveLocationNames() {
+            localStorage.setItem('locationNames', JSON.stringify(locations));
+        }
+        
+        // Hiển thị danh sách vị trí
+        function renderLocationList() {
+            const locationList = document.getElementById('locationList');
+            locationList.innerHTML = '';
+            
+            locations.forEach(location => {
+                const displayName = location.customName || location.defaultName;
+                const div = document.createElement('div');
+                div.className = 'location-row';
+                div.setAttribute('data-location', location.id);
+                div.innerHTML = `
+                    <div class="location-name editable" data-location="${location.id}">${displayName}</div>
+                    <div class="location-actions">
+                        <button class="btn-capture" onclick="openCamera('${location.id}')">Chụp</button>
+                        <button class="btn-upload" onclick="uploadImage('${location.id}')">Tải</button>
+                        <button class="btn-check" style="display:none;">✓</button>
+                    </div>
+                `;
+                locationList.appendChild(div);
+            });
+            
+            // Thêm sự kiện click để chỉnh sửa tên vị trí
+            document.querySelectorAll('.location-name.editable').forEach(el => {
+                el.addEventListener('click', function() {
+                    const locationId = this.getAttribute('data-location');
+                    const location = locations.find(loc => loc.id === locationId);
+                    const currentName = location.customName || location.defaultName;
+                    
+                    this.innerHTML = `<input type="text" value="${currentName}" 
+                        onblur="updateLocationName('${locationId}', this.value)" 
+                        onkeypress="if(event.key==='Enter') {this.blur();}">`;
+                    
+                    this.querySelector('input').focus();
+                    this.querySelector('input').select();
+                });
+            });
+        }
+        
+        // Cập nhật tên vị trí
+        function updateLocationName(locationId, newName) {
+            const location = locations.find(loc => loc.id === locationId);
+            if (location) {
+                location.customName = newName.toUpperCase();
+                saveLocationNames();
+                renderLocationList();
+                updateCapturedInfoTable();
+            }
+        }
+        
+        // Lấy tên hiển thị của vị trí
+        function getLocationDisplayName(locationId) {
+            const location = locations.find(loc => loc.id === locationId);
+            return location ? (location.customName || location.defaultName) : locationId;
+        }
+        
+        // Kiểm tra và hiển thị cảnh báo HTTPS
+        function checkHttpsWarning() {
+            const httpsWarning = document.getElementById('httpsWarning');
+            if (!isHttps) {
+                httpsWarning.style.display = 'block';
+            } else {
+                httpsWarning.style.display = 'none';
+            }
+        }
+        
+        // Lấy danh sách các đơn vị từ dữ liệu
+        function getCompaniesList() {
+            const data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+            const companies = {};
+            
+            data.forEach(item => {
+                if (!companies[item.company]) {
+                    companies[item.company] = {
+                        count: 0,
+                        vehicles: []
+                    };
+                }
+                companies[item.company].count++;
+                companies[item.company].vehicles.push(item);
+            });
+            
+            return companies;
+        }
+        
+        // Hiển thị danh sách đơn vị để chọn tải
+        function showDownloadCompanies() {
+            const companies = getCompaniesList();
+            const container = document.getElementById('downloadCompaniesList');
+            container.innerHTML = '';
+            
+            selectedDownloadCompanies = [];
+            
+            if (Object.keys(companies).length === 0) {
+                container.innerHTML = '<div class="empty-info">Không có đơn vị nào</div>';
+                return;
+            }
+            
+            for (const company in companies) {
+                const companyData = companies[company];
+                const div = document.createElement('div');
+                div.className = 'company-item';
+                div.innerHTML = `
+                    <input type="checkbox" class="company-checkbox" id="download-${company}" value="${company}" onchange="toggleCompanySelection('download', '${company}')">
+                    <div class="company-info">
+                        <div class="company-name">${company}</div>
+                        <div class="company-details">${companyData.count} xe</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+        
+        // Hiển thị danh sách đơn vị để chọn xóa
+        function showDeleteCompanies() {
+            const companies = getCompaniesList();
+            const container = document.getElementById('deleteCompaniesList');
+            container.innerHTML = '';
+            
+            selectedDeleteCompanies = [];
+            
+            if (Object.keys(companies).length === 0) {
+                container.innerHTML = '<div class="empty-info">Không có đơn vị nào</div>';
+                return;
+            }
+            
+            for (const company in companies) {
+                const companyData = companies[company];
+                const div = document.createElement('div');
+                div.className = 'company-item';
+                div.innerHTML = `
+                    <input type="checkbox" class="company-checkbox" id="delete-${company}" value="${company}" onchange="toggleCompanySelection('delete', '${company}')">
+                    <div class="company-info">
+                        <div class="company-name">${company}</div>
+                        <div class="company-details">${companyData.count} xe</div>
+                    </div>
+                `;
+                container.appendChild(div);
+            }
+        }
+        
+        // Chọn/bỏ chọn tất cả đơn vị
+        function toggleSelectAll(type) {
+            const companies = getCompaniesList();
+            const selectAll = document.getElementById(`selectAll${type === 'download' ? 'Download' : 'Delete'}`);
+            const checkboxes = document.querySelectorAll(`#${type}CompaniesList .company-checkbox`);
+            
+            checkboxes.forEach(checkbox => {
+                checkbox.checked = selectAll.checked;
+                const company = checkbox.value;
+                
+                if (selectAll.checked) {
+                    if (type === 'download' && !selectedDownloadCompanies.includes(company)) {
+                        selectedDownloadCompanies.push(company);
+                    } else if (type === 'delete' && !selectedDeleteCompanies.includes(company)) {
+                        selectedDeleteCompanies.push(company);
+                    }
+                } else {
+                    if (type === 'download') {
+                        selectedDownloadCompanies = selectedDownloadCompanies.filter(c => c !== company);
+                    } else if (type === 'delete') {
+                        selectedDeleteCompanies = selectedDeleteCompanies.filter(c => c !== company);
+                    }
+                }
+            });
+        }
+        
+        // Chọn/bỏ chọn đơn vị
+        function toggleCompanySelection(type, company) {
+            const checkbox = document.getElementById(`${type}-${company}`);
+            
+            if (type === 'download') {
+                if (checkbox.checked) {
+                    if (!selectedDownloadCompanies.includes(company)) {
+                        selectedDownloadCompanies.push(company);
+                    }
+                } else {
+                    selectedDownloadCompanies = selectedDownloadCompanies.filter(c => c !== company);
+                    document.getElementById('selectAllDownload').checked = false;
+                }
+            } else if (type === 'delete') {
+                if (checkbox.checked) {
+                    if (!selectedDeleteCompanies.includes(company)) {
+                        selectedDeleteCompanies.push(company);
+                    }
+                } else {
+                    selectedDeleteCompanies = selectedDeleteCompanies.filter(c => c !== company);
+                    document.getElementById('selectAllDelete').checked = false;
+                }
+            }
+        }
+        
+        // Hiển thị thanh tiến trình
+        function showProgress(percent, text) {
+            const progressBar = document.getElementById('progressBar');
+            const progress = document.getElementById('progress');
+            const progressText = document.getElementById('progressText');
+            
+            progressBar.style.display = 'block';
+            progress.style.width = percent + '%';
+            progressText.textContent = text;
+        }
+        
+        // Ẩn thanh tiến trình
+        function hideProgress() {
+            const progressBar = document.getElementById('progressBar');
+            progressBar.style.display = 'none';
+        }
+        
+        // Mở modal
+        function openModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+        }
+        
+        // Đóng modal
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+            document.getElementById('overlay').style.display = 'none';
+        }
+        
+        // Đóng tất cả modal
+        function closeAllModals() {
+            document.querySelectorAll('#searchModal, #cameraModal, #downloadModal, #deleteModal').forEach(modal => {
+                modal.style.display = 'none';
+            });
+            document.getElementById('overlay').style.display = 'none';
+            
+            // Đóng camera nếu đang mở
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+        }
+        
+        // Kiểm tra hỗ trợ camera
+        function checkCameraSupport() {
+            if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+                return {
+                    supported: false,
+                    message: 'Trình duyệt của bạn không hỗ trợ truy cập camera. Vui lòng sử dụng trình duyệt khác hoặc tải ảnh từ thiết bị.'
+                };
+            }
+            
+            if (!isHttps) {
+                return {
+                    supported: false,
+                    message: 'Camera chỉ hoạt động qua kết nối HTTPS. Vui lòng sử dụng nút "Tải" để tải ảnh từ thiết bị.'
+                };
+            }
+            
+            return { supported: true };
+        }
+        
+        // Thử lại truy cập camera
+        function tryAgainCamera() {
+            document.getElementById('cameraErrorContainer').style.display = 'none';
+            document.getElementById('cameraPermissionGuide').style.display = 'none';
+            document.getElementById('videoElement').style.display = 'block';
+            document.getElementById('captureButton').style.display = 'block';
+            
+            const simpleConstraints = {
+                video: true,
+                audio: false
+            };
+            
+            navigator.mediaDevices.getUserMedia(simpleConstraints)
+            .then(function(s) {
+                stream = s;
+                const video = document.getElementById('videoElement');
+                video.srcObject = stream;
+            })
+            .catch(function(err) {
+                console.error('Lỗi khi truy cập camera với constraints đơn giản:', err);
+                showCameraError('Không thể truy cập camera. Vui lòng kiểm tra quyền truy cập camera hoặc tải ảnh từ thiết bị.');
+            });
+        }
+        
+        // Hiển thị lỗi camera
+        function showCameraError(message) {
+            document.getElementById('cameraErrorContainer').style.display = 'block';
+            document.getElementById('cameraErrorMessage').textContent = message;
+            document.getElementById('videoElement').style.display = 'none';
+            document.getElementById('captureButton').style.display = 'none';
+            document.getElementById('cameraPermissionGuide').style.display = 'none';
+        }
+        
+        // Hiển thị hướng dẫn cấp quyền
+        function showPermissionGuide() {
+            document.getElementById('cameraErrorContainer').style.display = 'none';
+            document.getElementById('cameraPermissionGuide').style.display = 'block';
+            document.getElementById('videoElement').style.display = 'none';
+            document.getElementById('captureButton').style.display = 'none';
+        }
+        
+        // Mở camera
+        function openCamera(location) {
+            currentLocation = location;
+            
+            // Kiểm tra hỗ trợ camera
+            const cameraSupport = checkCameraSupport();
+            if (!cameraSupport.supported) {
+                alert(cameraSupport.message);
+                return;
+            }
+            
+            // Mở modal camera
+            document.getElementById('cameraModal').style.display = 'block';
+            document.getElementById('overlay').style.display = 'block';
+            
+            // Dừng stream hiện tại nếu có
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                stream = null;
+            }
+            
+            // Ẩn thông báo lỗi và hướng dẫn
+            document.getElementById('cameraErrorContainer').style.display = 'none';
+            document.getElementById('cameraPermissionGuide').style.display = 'none';
+            document.getElementById('videoElement').style.display = 'block';
+            document.getElementById('captureButton').style.display = 'block';
+            
+            // Sử dụng constraints phù hợp với thiết bị di động
+            const constraints = {
+                video: {
+                    facingMode: 'environment',
+                    width: { ideal: 1280 },
+                    height: { ideal: 720 }
+                },
+                audio: false
+            };
+            
+            // Thử với constraints đầy đủ
+            navigator.mediaDevices.getUserMedia(constraints)
+            .then(function(s) {
+                stream = s;
+                const video = document.getElementById('videoElement');
+                video.srcObject = stream;
+                
+                // Xử lý sự kiện khi video bắt đầu phát
+                video.onloadedmetadata = function() {
+                    video.play().catch(function(e) {
+                        console.error('Lỗi khi phát video:', e);
+                        showCameraError('Không thể phát video từ camera. Vui lòng thử lại hoặc tải ảnh từ thiết bị.');
+                    });
+                };
+            })
+            .catch(function(err) {
+                console.error('Lỗi khi truy cập camera:', err);
+                
+                // Thử lại với constraints đơn giản hơn
+                const simpleConstraints = {
+                    video: true,
+                    audio: false
+                };
+                
+                navigator.mediaDevices.getUserMedia(simpleConstraints)
+                .then(function(s) {
+                    stream = s;
+                    const video = document.getElementById('videoElement');
+                    video.srcObject = stream;
+                })
+                .catch(function(err2) {
+                    console.error('Lỗi khi truy cập camera với constraints đơn giản:', err2);
+                    
+                    // Xử lý các loại lỗi cụ thể
+                    if (err2.name === 'NotAllowedError' || err2.name === 'PermissionDeniedError') {
+                        showPermissionGuide();
+                    } else if (err2.name === 'NotFoundError' || err2.name === 'DevicesNotFoundError') {
+                        showCameraError('Không tìm thấy camera trên thiết bị. Vui lòng kiểm tra kết nối camera hoặc tải ảnh từ thiết bị.');
+                    } else if (err2.name === 'NotReadableError' || err2.name === 'TrackStartError') {
+                        showCameraError('Camera đang được sử dụng bởi ứng dụng khác. Vui lòng đóng ứng dụng khác hoặc tải ảnh từ thiết bị.');
+                    } else if (err2.name === 'OverconstrainedError' || err2.name === 'ConstraintNotSatisfiedError') {
+                        showCameraError('Camera không hỗ trợ các yêu cầu kỹ thuật. Vui lòng thử lại hoặc tải ảnh từ thiết bị.');
+                    } else {
+                        showCameraError('Không thể truy cập camera: ' + err2.message + '. Vui lòng tải ảnh từ thiết bị.');
+                    }
+                });
+            });
+        }
+        
+        // Chụp ảnh
+        function captureImage() {
+            const video = document.getElementById('videoElement');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+            
+            // Chuyển canvas thành blob và lưu ảnh
+            canvas.toBlob(function(blob) {
+                const company = document.getElementById('company').value || 'NO_COMPANY';
+                const plate = document.getElementById('plate').value || 'NO_PLATE';
+                const asset = document.getElementById('asset').value || 'NO_ASSET';
+                
+                if (plate === 'NO_PLATE') {
+                    alert('Vui lòng nhập biển số xe');
+                    return;
+                }
+                
+                // Chuyển blob thành base64 để lưu trữ
+                const reader = new FileReader();
+                reader.onload = function() {
+                    const base64data = reader.result;
+                    saveImage(base64data, company, plate, asset, currentLocation);
+                };
+                reader.readAsDataURL(blob);
+                
+                closeAllModals();
+            }, 'image/jpeg', 0.8);
+        }
+        
+        // Tải ảnh lên từ thiết bị
+        function uploadImage(location) {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            
+            input.onchange = function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const company = document.getElementById('company').value || 'NO_COMPANY';
+                    const plate = document.getElementById('plate').value || 'NO_PLATE';
+                    const asset = document.getElementById('asset').value || 'NO_ASSET';
+                    
+                    if (plate === 'NO_PLATE') {
+                        alert('Vui lòng nhập biển số xe');
+                        return;
+                    }
+                    
+                    // Kiểm tra định dạng file
+                    if (!file.type.match('image.*')) {
+                        alert('Vui lòng chọn file ảnh');
+                        return;
+                    }
+                    
+                    // Chuyển file thành base64
+                    const reader = new FileReader();
+                    reader.onload = function() {
+                        const base64data = reader.result;
+                        saveImage(base64data, company, plate, asset, location);
+                    };
+                    reader.onerror = function() {
+                        alert('Lỗi khi đọc file ảnh');
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            
+            input.click();
+        }
+        
+        // Lưu ảnh
+        function saveImage(base64data, company, plate, asset, location) {
+            // Khởi tạo các đối tượng nếu chưa tồn tại
+            if (!capturedImages[company]) {
+                capturedImages[company] = {};
+            }
+            if (!capturedImages[company][plate]) {
+                capturedImages[company][plate] = {};
+            }
+            if (!capturedImages[company][plate][asset]) {
+                capturedImages[company][plate][asset] = {};
+            }
+            
+            // Lưu ảnh
+            capturedImages[company][plate][asset][location] = base64data;
+            
+            // Cập nhật giao diện
+            const locationRows = document.querySelectorAll('.location-row');
+            locationRows.forEach(row => {
+                if (row.getAttribute('data-location') === location) {
+                    row.classList.add('has-image');
+                    const checkBtn = row.querySelector('.btn-check');
+                    checkBtn.style.display = 'block';
+                    
+                    // Tạo tên file theo yêu cầu: số xe số tài vị trí
+                    const displayName = getLocationDisplayName(location);
+                    const filename = `${plate} ${asset} ${displayName}.jpg`;
+                    
+                    // Lưu thông tin vào localStorage
+                    saveToLocalStorage(company, plate, asset, location, filename);
+                    
+                    // Cập nhật bảng thông tin đã chụp
+                    updateCapturedInfoTable();
+                }
+            });
+            
+            alert(`Đã lưu ảnh cho vị trí: ${getLocationDisplayName(location)}`);
+        }
+        
+        // Lưu vào localStorage
+        function saveToLocalStorage(company, plate, asset, location, filename) {
+            try {
+                // Lấy dữ liệu hiện tại từ localStorage
+                let data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+                
+                // Tìm xem đã có bản ghi cho biển số này chưa
+                const existingIndex = data.findIndex(item => item.plate === plate && item.asset === asset);
+                
+                const now = new Date();
+                const timestamp = now.toLocaleString('vi-VN');
+                
+                if (existingIndex !== -1) {
+                    // Cập nhật bản ghi hiện tại
+                    data[existingIndex].company = company;
+                    data[existingIndex].updated = timestamp;
+                    
+                    // Thêm vị trí ảnh nếu chưa có
+                    if (!data[existingIndex].images) {
+                        data[existingIndex].images = {};
+                    }
+                    data[existingIndex].images[location] = filename;
+                } else {
+                    // Tạo bản ghi mới
+                    data.push({
+                        company: company,
+                        plate: plate,
+                        asset: asset,
+                        created: timestamp,
+                        updated: timestamp,
+                        images: {
+                            [location]: filename
+                        }
+                    });
+                }
+                
+                // Lưu lại vào localStorage
+                localStorage.setItem('vehicleData', JSON.stringify(data));
+            } catch (error) {
+                console.error('Lỗi khi lưu vào localStorage:', error);
+                alert('Lỗi khi lưu dữ liệu: ' + error.message);
+            }
+        }
+        
+        // Cập nhật bảng thông tin đã chụp
+        function updateCapturedInfoTable() {
+            const tableBody = document.getElementById('infoTableBody');
+            const tableHead = document.querySelector('.info-table thead tr');
+            const data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+            
+            // Cập nhật tiêu đề bảng với các vị trí
+            let headerHTML = `
+                <th>STT</th>
+                <th>Đơn vị</th>
+                <th>Biển số</th>
+                <th>Số tài</th>
+            `;
+            
+            locations.forEach(location => {
+                const displayName = getLocationDisplayName(location.id);
+                headerHTML += `<th>${displayName}</th>`;
+            });
+            
+            headerHTML += `<th>Thao tác</th>`;
+            tableHead.innerHTML = headerHTML;
+            
+            if (data.length === 0) {
+                const colspan = 5 + locations.length;
+                tableBody.innerHTML = `<tr><td colspan="${colspan}" class="empty-info">Chưa có thông tin nào được chụp</td></tr>`;
+                return;
+            }
+            
+            // Sắp xếp theo thời gian cập nhật mới nhất
+            data.sort((a, b) => new Date(b.updated) - new Date(a.updated));
+            
+            let html = '';
+            data.forEach((item, index) => {
+                html += `
+                    <tr>
+                        <td>${index + 1}</td>
+                        <td>${item.company}</td>
+                        <td>${item.plate}</td>
+                        <td>${item.asset}</td>
+                `;
+                
+                // Thêm cột cho từng vị trí
+                locations.forEach(location => {
+                    const hasImage = item.images && item.images[location.id] ? '1' : '0';
+                    html += `<td class="info-marker">${hasImage}</td>`;
+                });
+                
+                html += `
+                        <td>
+                            <button onclick="loadData('${item.plate}', '${item.asset}')" style="padding: 4px 8px; background: #2196F3; color: white; border: none; border-radius: 4px; font-size: 0.8em;">Chọn</button>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            tableBody.innerHTML = html;
+        }
+        
+        // Xử lý tải về
+        function processDownload() {
+            if (selectedDownloadCompanies.length === 0) {
+                alert('Vui lòng chọn ít nhất một đơn vị để tải về');
+                return;
+            }
+            
+            closeModal('downloadModal');
+            showProgress(10, 'Đang chuẩn bị dữ liệu...');
+            
+            try {
+                const data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+                const allZip = new JSZip();
+                let processedCount = 0;
+                let totalVehicles = 0;
+                
+                // Đếm tổng số xe cần xử lý
+                selectedDownloadCompanies.forEach(company => {
+                    const companyVehicles = data.filter(item => item.company === company);
+                    totalVehicles += companyVehicles.length;
+                });
+                
+                if (totalVehicles === 0) {
+                    hideProgress();
+                    alert('Không có dữ liệu để tải về');
+                    return;
+                }
+                
+                selectedDownloadCompanies.forEach(company => {
+                    const companyVehicles = data.filter(item => item.company === company);
+                    
+                    if (companyVehicles.length > 0) {
+                        // Tạo thư mục cho đơn vị
+                        const companyFolder = allZip.folder(company);
+                        
+                        companyVehicles.forEach(vehicle => {
+                            const plate = vehicle.plate;
+                            const asset = vehicle.asset;
+                            
+                            if (vehicle.images && Object.keys(vehicle.images).length > 0) {
+                                // Tạo file Excel cho mỗi xe
+                                const excelData = [];
+                                excelData.push(["Tên file", "Vị trí", "Đánh dấu"]);
+                                
+                                locations.forEach(location => {
+                                    const hasImage = vehicle.images[location.id] ? "1" : "0";
+                                    const displayName = getLocationDisplayName(location.id);
+                                    const filename = `${plate} ${asset} ${displayName}.jpg`;
+                                    excelData.push([filename, displayName, hasImage]);
+                                });
+                                
+                                const ws = XLSX.utils.aoa_to_sheet(excelData);
+                                const wb = XLSX.utils.book_new();
+                                XLSX.utils.book_append_sheet(wb, ws, "Danh sách ảnh");
+                                const excelBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+                                
+                                companyFolder.file(`${plate}.xlsx`, excelBuffer);
+                                
+                                // Thêm ảnh vào thư mục
+                                if (capturedImages[company] && capturedImages[company][plate] && capturedImages[company][plate][asset]) {
+                                    for (const location in capturedImages[company][plate][asset]) {
+                                        if (capturedImages[company][plate][asset][location]) {
+                                            const displayName = getLocationDisplayName(location);
+                                            const filename = `${plate} ${asset} ${displayName}.jpg`;
+                                            const base64Data = capturedImages[company][plate][asset][location].split(',')[1];
+                                            companyFolder.file(filename, base64Data, {base64: true});
+                                        }
+                                    }
+                                }
+                            }
+                            
+                            processedCount++;
+                            
+                            // Cập nhật tiến trình
+                            const percent = 10 + (processedCount / totalVehicles * 85);
+                            showProgress(percent, `Đang xử lý ${processedCount}/${totalVehicles} xe...`);
+                            
+                            // Nếu đã xử lý hết
+                            if (processedCount === totalVehicles) {
+                                // Tạo file zip
+                                allZip.generateAsync({type: "blob"}).then(function(content) {
+                                    // Lưu file zip
+                                    const filename = selectedDownloadCompanies.length === 1 ? 
+                                        `${selectedDownloadCompanies[0]} - Dữ liệu ảnh chụp.zip` : 
+                                        'Dữ liệu ảnh chụp.zip';
+                                    saveAs(content, filename);
+                                    showProgress(100, 'Hoàn thành!');
+                                    setTimeout(hideProgress, 2000);
+                                }).catch(function(error) {
+                                    console.error('Lỗi khi tạo file zip:', error);
+                                    alert('Lỗi khi tạo file tải về: ' + error.message);
+                                    hideProgress();
+                                });
+                            }
+                        });
+                    }
+                });
+            } catch (error) {
+                console.error('Lỗi khi xử lý tải về:', error);
+                alert('Lỗi khi xử lý tải về: ' + error.message);
+                hideProgress();
+            }
+        }
+        
+        // Xử lý xóa
+        function processDelete() {
+            if (selectedDeleteCompanies.length === 0) {
+                alert('Vui lòng chọn ít nhất một đơn vị để xóa');
+                return;
+            }
+            
+            if (!confirm(`Bạn có chắc chắn muốn xóa ${selectedDeleteCompanies.length} đơn vị đã chọn?`)) {
+                return;
+            }
+            
+            closeModal('deleteModal');
+            
+            const data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+            
+            // Lọc ra các xe không thuộc đơn vị đã chọn
+            const newData = data.filter(item => !selectedDeleteCompanies.includes(item.company));
+            
+            // Xóa ảnh đã chụp của các đơn vị đã chọn
+            selectedDeleteCompanies.forEach(company => {
+                if (capturedImages[company]) {
+                    delete capturedImages[company];
+                }
+            });
+            
+            // Lưu dữ liệu mới
+            localStorage.setItem('vehicleData', JSON.stringify(newData));
+            
+            // Cập nhật bảng thông tin
+            updateCapturedInfoTable();
+            
+            // Cập nhật giao diện nếu xe hiện tại thuộc đơn vị bị xóa
+            const currentCompany = document.getElementById('company').value;
+            if (selectedDeleteCompanies.includes(currentCompany)) {
+                document.getElementById('company').value = '';
+                document.getElementById('plate').value = '';
+                document.getElementById('asset').value = '';
+                
+                // Xóa trạng thái ảnh đã chụp
+                const locationRows = document.querySelectorAll('.location-row');
+                locationRows.forEach(row => {
+                    row.classList.remove('has-image');
+                    const checkBtn = row.querySelector('.btn-check');
+                    checkBtn.style.display = 'none';
+                });
+            }
+            
+            alert(`Đã xóa ${selectedDeleteCompanies.length} đơn vị`);
+        }
+        
+        // Mở modal tải về
+        function openDownloadModal() {
+            showDownloadCompanies();
+            openModal('downloadModal');
+        }
+        
+        // Mở modal xóa
+        function openDeleteModal() {
+            showDeleteCompanies();
+            openModal('deleteModal');
+        }
+        
+        // Lưu dữ liệu
+        function saveData() {
+            const company = document.getElementById('company').value;
+            const plate = document.getElementById('plate').value;
+            const asset = document.getElementById('asset').value;
+            
+            if (!plate) {
+                alert('Vui lòng nhập biển số xe');
+                return;
+            }
+            
+            // Lưu thông tin cơ bản
+            let data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+            const existingIndex = data.findIndex(item => item.plate === plate && item.asset === asset);
+            
+            const now = new Date().toLocaleString('vi-VN');
+            
+            if (existingIndex !== -1) {
+                data[existingIndex].company = company;
+                data[existingIndex].updated = now;
+            } else {
+                data.push({
+                    company: company,
+                    plate: plate,
+                    asset: asset,
+                    created: now,
+                    updated: now,
+                    images: {}
+                });
+            }
+            
+            localStorage.setItem('vehicleData', JSON.stringify(data));
+            
+            // Cập nhật bảng thông tin
+            updateCapturedInfoTable();
+            
+            alert('Đã lưu thông tin');
+        }
+        
+        // Tìm kiếm
+        function searchData() {
+            const searchInput = document.getElementById('searchInput');
+            const searchResults = document.getElementById('searchResults');
+            
+            openModal('searchModal');
+            searchInput.value = '';
+            searchResults.innerHTML = '';
+            
+            // Lấy dữ liệu từ localStorage
+            const data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+            
+            if (data.length === 0) {
+                searchResults.innerHTML = '<p>Không có dữ liệu nào được tìm thấy.</p>';
+                return;
+            }
+            
+            // Hiển thị tất cả dữ liệu
+            data.forEach(item => {
+                const div = document.createElement('div');
+                div.className = 'search-item';
+                
+                let imagesList = '';
+                if (item.images) {
+                    imagesList = '<ul style="padding-left: 20px; margin: 5px 0;">';
+                    for (const [location, filename] of Object.entries(item.images)) {
+                        const displayName = getLocationDisplayName(location);
+                        imagesList += `<li>${displayName}: ${filename}</li>`;
+                    }
+                    imagesList += '</ul>';
+                }
+                
+                div.innerHTML = `
+                    <h3>${item.plate} - ${item.asset}</h3>
+                    <p>Đơn vị: ${item.company}</p>
+                    ${imagesList}
+                    <button onclick="loadData('${item.plate}', '${item.asset}')" style="padding: 5px; margin-top: 5px; background: #4CAF50; color: white; border: none; border-radius: 4px;">Chọn</button>
+                `;
+                
+                searchResults.appendChild(div);
+            });
+            
+            // Thiết lập sự kiện tìm kiếm theo từ khóa
+            searchInput.addEventListener('input', function() {
+                const keyword = this.value.toLowerCase();
+                const items = searchResults.querySelectorAll('.search-item');
+                
+                items.forEach(item => {
+                    const text = item.textContent.toLowerCase();
+                    if (text.includes(keyword)) {
+                        item.style.display = 'block';
+                    } else {
+                        item.style.display = 'none';
+                    }
+                });
+            });
+        }
+        
+        // Tải dữ liệu đã lưu
+        function loadData(plate, asset) {
+            const data = JSON.parse(localStorage.getItem('vehicleData')) || [];
+            const item = data.find(i => i.plate === plate && i.asset === asset);
+            
+            if (item) {
+                document.getElementById('company').value = item.company;
+                document.getElementById('plate').value = item.plate;
+                document.getElementById('asset').value = item.asset;
+                
+                // Đặt trạng thái ảnh đã chụp
+                const locationRows = document.querySelectorAll('.location-row');
+                locationRows.forEach(row => {
+                    const location = row.getAttribute('data-location');
+                    const checkBtn = row.querySelector('.btn-check');
+                    
+                    if (item.images && item.images[location]) {
+                        row.classList.add('has-image');
+                        checkBtn.style.display = 'block';
+                    } else {
+                        row.classList.remove('has-image');
+                        checkBtn.style.display = 'none';
+                    }
+                });
+                
+                closeModal('searchModal');
+            } else {
+                alert('Không tìm thấy dữ liệu cho xe này');
+            }
+        }
+        
+        // Khởi tạo ứng dụng khi trang tải xong
+        window.addEventListener('load', initApp);
+    </script>
+</body>
+</html>
